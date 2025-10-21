@@ -1,0 +1,71 @@
+name: astrolotto
+description: "Astro Lotto Luck App"
+publish_to: "none"
+
+version: 1.1.0+2
+
+environment:
+  sdk: ">=3.0.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # ✨ UI + Visual Effects
+  animated_text_kit: ^4.2.2
+  google_fonts: ^6.2.1
+  flutter_animate: ^4.5.0
+  confetti: ^0.7.0
+
+  # 🎯 Ads + Sharing
+  google_mobile_ads: ^5.1.0        # ✅ Works great with webview_flutter 4.10+
+  share_plus: ^7.2.1               # ✅ Compatible with Kotlin 1.9.24
+
+  # 🎧 Audio + Preferences
+  audioplayers: ^5.1.0
+  shared_preferences: ^2.2.3
+
+  # 🌐 WebView (must match AdMob)
+  webview_flutter: ^4.10.0         # ✅ Required by google_mobile_ads 5.1.0
+
+  # 🔐 Backend + Auth
+  supabase_flutter: ^2.5.0
+
+  # 🪶 Utilities
+  cupertino_icons: ^1.0.8
+  crypto: ^3.0.3
+  http: ^1.2.2
+  intl: ^0.19.0
+  country_picker: ^2.0.26
+  flutter_dotenv: ^5.1.0
+  package_info_plus: ^8.0.0
+
+  # 🌊 Branding tools
+  flutter_native_splash: ^2.4.6
+  flutter_launcher_icons: ^0.14.4
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - .env
+    - assets/images/astro_lotto_luck_logo.png
+    - assets/images/logolot.png
+
+flutter_native_splash:
+  color: "#000000"
+  android: true
+  ios: true
+  web: false
+  fullscreen: true
+
+flutter_launcher_icons:
+  android: "launcher_icon"
+  ios: true
+  image_path: assets/images/astro_lotto_luck_logo.png
+  min_sdk_android: 21
