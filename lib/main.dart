@@ -11,6 +11,8 @@ import 'supabase_config.dart';
 import 'login_screen.dart';
 import 'generator_screen.dart';
 import 'splash_screen.dart';
+import 'screens/premium_realm_screen.dart'; // 👈 new import
+import 'screens/forecast_screen.dart';
 
 /// ✅ Google AdMob Ad Unit IDs
 const String bannerTopId = 'ca-app-pub-5354629198133392/7753523660';
@@ -78,10 +80,12 @@ class AstroLottoLuckApp extends StatelessWidget {
         contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 12),
         hintStyle: TextStyle(fontSize: 13, color: Colors.white54),
       ),
-      cardTheme: CardTheme(
-        color: const Color(0xFF10162C),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      cardTheme: const CardThemeData(
+        color: Color(0xFF10162C),
         elevation: 2,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(18)),
+        ),
       ),
       textTheme: const TextTheme(
         bodyMedium: TextStyle(fontSize: 13, height: 1.35, color: Colors.white),
@@ -92,11 +96,14 @@ class AstroLottoLuckApp extends StatelessWidget {
       title: 'Astro Lotto Luck',
       debugShowCheckedModeBanner: false,
       theme: theme,
-      home: const VersionChecker(), // 👈 our new version check widget
+      home: const VersionChecker(),
       routes: {
         '/login': (_) => const LoginScreen(),
         '/generator': (_) => const GeneratorScreen(),
         '/saved': (_) => const SavedDrawsScreen(),
+        '/premium': (_) => const PremiumRealmScreen(), // 👈 NEW premium page route
+        '/forecast': (_) => const ForecastScreen(),
+
       },
       builder: (context, child) {
         final media = MediaQuery.of(context);
@@ -115,7 +122,7 @@ class AstroLottoLuckApp extends StatelessWidget {
   }
 }
 
-/// 🔍 Version Check Screen (runs before app opens)
+/// 🔍 Version Check Screen
 class VersionChecker extends StatefulWidget {
   const VersionChecker({super.key});
 
@@ -177,7 +184,7 @@ class _VersionCheckerState extends State<VersionChecker> {
   void _showUpdateDialog(String latest, String notes) {
     showDialog(
       context: context,
-      barrierDismissible: false, // 🔒 Force update
+      barrierDismissible: false,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF10162C),
         title: const Text(
@@ -238,7 +245,6 @@ class _BannerAdWidgetState extends State<BannerAdWidget> {
   @override
   void initState() {
     super.initState();
-
     _banner = BannerAd(
       adUnitId: widget.isTop ? bannerTopId : bannerBottomId,
       size: AdSize.banner,

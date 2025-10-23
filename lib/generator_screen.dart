@@ -331,9 +331,30 @@ class _GeneratorScreenState extends State<GeneratorScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
+      appBar: AppBar(
+        backgroundColor: const Color(0xFF0F1430),
+        centerTitle: true,
+        title: const Text(
+          "Astro Lotto Luck",
+          style: TextStyle(
+            color: Colors.white,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Premium Realm',
+            icon: const Icon(Icons.auto_awesome, color: Colors.amberAccent),
+            onPressed: () {
+              Navigator.pushNamed(context, '/premium');
+            },
+          ),
+        ],
+      ),
       body: Stack(
         children: [
-          const _AnimatedBackground(), // ← isolated animations (no form rebuilds)
+          const _AnimatedBackground(),
           SafeArea(
             child: GestureDetector(
               onTap: () => FocusScope.of(context).unfocus(),
@@ -352,8 +373,10 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                       builder: (context, child) {
                         if (_logoAnim.value < 0.7) {
                           return Transform.translate(
-                            offset: Offset(0,
-                                MediaQuery.of(context).size.height * _logoFall.value),
+                            offset: Offset(
+                              0,
+                              MediaQuery.of(context).size.height * _logoFall.value,
+                            ),
                             child: _fallingLogo(),
                           );
                         } else {
@@ -365,39 +388,35 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                       },
                     ),
                     const SizedBox(height: 10),
-                    Text(
-                      'ASTRO LOTTO LUCK',
-                      style: GoogleFonts.orbitron(
-                        fontSize: 38,
-                        color: Colors.white,
-                        fontWeight: FontWeight.w400,
-                        letterSpacing: 2,
-                        shadows: const [
-                          Shadow(
-                            color: _cSunshine,
-                            offset: Offset(0, 0),
-                            blurRadius: 15,
-                          ),
-                        ],
+                    Center(
+                      child: Text(
+                        'ASTRO LOTTO LUCK',
+                        textAlign: TextAlign.center,
+                        style: GoogleFonts.orbitron(
+                          fontSize: 32,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w400,
+                          letterSpacing: 2,
+                          shadows: const [
+                            Shadow(
+                              color: _cSunshine,
+                              offset: Offset(0, 0),
+                              blurRadius: 15,
+                            ),
+                          ],
+                        ),
                       ),
                     ),
                     const SizedBox(height: 15),
                     _magicStrip(),
                     const SizedBox(height: 20),
-
-                    // Wrap heavy UI in RepaintBoundary so typing doesn’t force repaint
-                    RepaintBoundary(
-                      child: _introBox(),
-                    ),
+                    RepaintBoundary(child: _introBox()),
                     const SizedBox(height: 25),
-
-                    // INPUTS (no animation listeners; smooth typing)
                     _glassInput(
                         '👤 Full Name', _nameCtrl, 'Type your full name here'),
-                    _glassInput(
-                        '🏠 Birthplace (optional)', _townCtrl, 'Optional'),
-                    _glassPicker('🌍 Country', '$_countryEmoji $_countryName',
-                        _pickCountry),
+                    _glassInput('🏠 Birthplace (optional)', _townCtrl, 'Optional'),
+                    _glassPicker(
+                        '🌍 Country', '$_countryEmoji $_countryName', _pickCountry),
                     _glassPicker(
                         '📅 Date of Birth',
                         _dob == null
@@ -410,16 +429,13 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                             ? 'Select time'
                             : '${_tob!.hour}:${_tob!.minute.toString().padLeft(2, "0")}',
                         _pickTob),
-                    _glassDropdown('🎲 Lottery', _lottery,
-                        _rules.keys.toList(), (v) {
+                    _glassDropdown('🎲 Lottery', _lottery, _rules.keys.toList(),
+                            (v) {
                           setState(() => _lottery = v ?? _lottery);
                         }),
                     const SizedBox(height: 30),
-
-                    // Animated balls isolated to its own controller
                     _MagicBalls(anim: _ballsAnim, currentRule: _rules[_lottery]!),
                     const SizedBox(height: 25),
-
                     _generateButton(),
                     const SizedBox(height: 25),
                     _featureButtons(),
@@ -589,7 +605,7 @@ class _GeneratorScreenState extends State<GeneratorScreen>
       textAlign: TextAlign.center,
       style: GoogleFonts.orbitron(
         color: Colors.white,
-        fontSize: 14,
+        fontSize: 18,
         height: 1.5,
         fontWeight: FontWeight.w400,
       ),
