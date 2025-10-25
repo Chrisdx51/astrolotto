@@ -58,6 +58,7 @@ flutter:
 
   assets:
     - .env
+    - env.txt
     - assets/images/astro_lotto_luck_logo.png
     - assets/images/logolot.png
 
