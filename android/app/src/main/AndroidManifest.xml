@@ -1,19 +1,40 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="com.ck.astrolotto">
 
-    <!-- ✅ Recommended permissions for ads & networking -->
+    <!-- ✅ Core permissions -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="com.android.vending.BILLING" />
 
     <application
         android:name="${applicationName}"
-        android:label="AstroLotto"
-        android:icon="@mipmap/launcher_icon">
+        android:label="Astro Lotto Luck"
+        android:icon="@mipmap/launcher_icon"
+        android:usesCleartextTraffic="true"
+        android:allowBackup="true"
+        android:supportsRtl="true"
+        android:theme="@style/LaunchTheme">
 
-        <!-- ✅ Your REAL AdMob App ID (not a unit id) -->
+        <!-- ✅ Flutter embedding -->
+        <meta-data
+            android:name="flutterEmbedding"
+            android:value="2" />
+
+        <!-- ✅ Force Google Billing v8.0.0 and override any older value -->
+        <meta-data
+            android:name="com.google.android.play.billingclient.version"
+            android:value="8.0.0"
+            tools:replace="android:value" />
+
+        <!-- ✅ Real AdMob App ID (this is your account’s app-level ID, not ad unit ID) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="ca-app-pub-5354629198133392~8049424171" />
 
+        <!-- ✅ Main Activity -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -24,7 +45,7 @@
             android:hardwareAccelerated="true"
             android:windowSoftInputMode="adjustResize">
 
-            <!-- Flutter launch theme applied before UI loads -->
+            <!-- Theme shown before Flutter UI loads -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
@@ -36,17 +57,25 @@
             </intent-filter>
         </activity>
 
-        <!-- Keep for Flutter plugin registration -->
-        <meta-data
-            android:name="flutterEmbedding"
-            android:value="2" />
+        <!-- ✅ Needed for URL Launcher plugin -->
+        <activity
+            android:name="io.flutter.plugins.urllauncher.UrlLauncherActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Transparent" />
+
     </application>
 
-    <!-- ✅ Optional: Flutter PROCESS_TEXT queries -->
+    <!-- ✅ Optional query support for PROCESS_TEXT & https links -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
+        </intent>
+
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:scheme="https" />
         </intent>
     </queries>
 

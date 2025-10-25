@@ -1,3 +1,5 @@
+// 🪐 Astro Lotto Luck — Full Live Main File (No Placeholders)
+import 'dart:async';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
@@ -5,16 +7,32 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:google_fonts/google_fonts.dart';
+import 'package:in_app_purchase/in_app_purchase.dart';
 
+// 🪐 Core Screens
 import 'saved_draws_screen.dart';
 import 'supabase_config.dart';
 import 'login_screen.dart';
 import 'generator_screen.dart';
 import 'splash_screen.dart';
-import 'screens/premium_realm_screen.dart'; // 👈 new import
-import 'screens/forecast_screen.dart';
+import 'about_screen.dart';
 
-/// ✅ Google AdMob Ad Unit IDs
+// 🌠 Premium Realm Screens
+import 'screens/premium_realm_screen.dart';
+import 'screens/forecast_screen.dart';
+import 'screens/lucky_crystal_screen.dart';
+import 'screens/vip_generator_screen.dart';
+import 'screens/manifestation_journal_screen.dart';
+import 'screens/meditation_mode_screen.dart';
+import 'screens/ad_free_mode_screen.dart';
+import 'screens/vip_paywall_screen.dart';
+import 'screens/subscribe_screen.dart';
+
+// 💫 Cosmic AI Service
+import 'services/cosmic_ai_service.dart';
+
+/// ✅ Google AdMob IDs
 const String bannerTopId = 'ca-app-pub-5354629198133392/7753523660';
 const String bannerBottomId = 'ca-app-pub-5354629198133392/6576173364';
 const String interstitialGenerateId = 'ca-app-pub-5354629198133392/9358636415';
@@ -23,19 +41,20 @@ const String bannerAdUnitId = bannerBottomId;
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // 1️⃣ Load environment variables
+  // 1️⃣ Load environment
   try {
     await dotenv.load(fileName: ".env");
-  } catch (_) {
-    debugPrint("⚠️ Could not load .env file.");
+    if (dotenv.env['SUPABASE_URL'] == null ||
+        dotenv.env['SUPABASE_ANON_KEY'] == null) {
+      throw Exception('Missing Supabase configuration in .env');
+    }
+  } catch (e) {
+    debugPrint("⚠️ Could not load .env file: $e");
   }
 
   // 2️⃣ Initialize Supabase
   try {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
+    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
   } catch (e) {
     debugPrint("⚠️ Supabase init failed: $e");
   }
@@ -43,7 +62,7 @@ Future<void> main() async {
   // 3️⃣ Initialize Google Ads
   await MobileAds.instance.initialize();
 
-  // 4️⃣ Run the app
+  // 4️⃣ Run app
   runApp(const AstroLottoLuckApp());
 }
 
@@ -87,8 +106,22 @@ class AstroLottoLuckApp extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
       ),
-      textTheme: const TextTheme(
-        bodyMedium: TextStyle(fontSize: 13, height: 1.35, color: Colors.white),
+
+      textTheme: GoogleFonts.poppinsTextTheme(
+        const TextTheme(
+          bodyMedium: TextStyle(fontSize: 13, height: 1.35, color: Colors.white),
+          headlineSmall: TextStyle(
+            fontFamily: 'Orbitron',
+            fontSize: 20,
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+          bodySmall: TextStyle(
+            fontFamily: 'Inter',
+            fontSize: 14,
+            color: Colors.white70,
+          ),
+        ),
       ),
     );
 
@@ -98,12 +131,22 @@ class AstroLottoLuckApp extends StatelessWidget {
       theme: theme,
       home: const VersionChecker(),
       routes: {
+        // 🧭 Core Pages
         '/login': (_) => const LoginScreen(),
         '/generator': (_) => const GeneratorScreen(),
         '/saved': (_) => const SavedDrawsScreen(),
-        '/premium': (_) => const PremiumRealmScreen(), // 👈 NEW premium page route
-        '/forecast': (_) => const ForecastScreen(),
+        '/subscribe': (context) => const SubscribeScreen(),
+        '/about': (_) => const AboutScreen(),
 
+
+        // 🌌 Premium Realm Pages
+        '/premium': (_) => const PremiumRealmScreen(),
+        '/forecast': (_) => const ForecastScreen(),
+        '/crystal': (_) => const LuckyCrystalScreen(isPremium: true),
+        '/vip': (_) => const VipGeneratorScreen(),
+        '/journal': (_) => const ManifestationJournalScreen(),
+        '/meditation': (_) => const MeditationModeScreen(),
+        '/adfree': (_) => const AdFreeModeScreen(),
       },
       builder: (context, child) {
         final media = MediaQuery.of(context);
@@ -137,7 +180,83 @@ class _VersionCheckerState extends State<VersionChecker> {
   void initState() {
     super.initState();
     _checkVersion();
+    safeCheckVipStatus(); // 👈 safer version with retry and offline handling
+
   }
+
+  // ✅ Offline or fallback helper
+  Future<void> safeCheckVipStatus() async {
+    try {
+      await checkVipStatus();
+    } catch (e) {
+      debugPrint("⚠️ Could not verify subscription: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              "⚠️ Unable to verify subscription — retrying soon.",
+              style: TextStyle(color: Colors.white),
+            ),
+            backgroundColor: Colors.orange,
+            duration: Duration(seconds: 4),
+          ),
+        );
+      }
+
+      // Retry in 30 seconds automatically
+      Future.delayed(const Duration(seconds: 30), () {
+        if (mounted) {
+          safeCheckVipStatus(); // 🔁 retry silently
+        }
+      });
+    }
+  }
+
+  Future<void> checkVipStatus() async {
+    final iap = InAppPurchase.instance;
+    final supabase = Supabase.instance.client;
+    final user = supabase.auth.currentUser;
+    if (user == null) return;
+
+    final available = await iap.isAvailable();
+    if (!available) {
+      debugPrint("Store not available");
+      return;
+    }
+
+    bool hasVip = false;
+
+    // ✅ Declare subscription variable first (so we can cancel later)
+    late final StreamSubscription<List<PurchaseDetails>> subscription;
+
+    subscription = iap.purchaseStream.listen((purchases) async {
+      for (final purchase in purchases) {
+        if (purchase.productID == 'vip-weekly' ||
+            purchase.productID == 'vip-monthly' ||
+            purchase.productID == 'vip-yearly') {
+          hasVip = true;
+        }
+      }
+
+      // ✅ Update Supabase
+      await supabase
+          .from('profiles')
+          .update({'is_vip': hasVip})
+          .eq('id', user.id);
+
+      debugPrint('✅ VIP status synced: $hasVip');
+
+      // ✅ Safely cancel listener after one round
+      await subscription.cancel();
+    });
+
+    // 🔄 This triggers Google to resend existing purchases
+    await iap.restorePurchases();
+  }
+
+
+
+
 
   Future<void> _checkVersion() async {
     final supabase = Supabase.instance.client;

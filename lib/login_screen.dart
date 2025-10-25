@@ -4,11 +4,13 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
-import 'generator_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'generator_screen.dart'; // Adjust import path as needed
 
 const _cTurquoise = Color(0xFF12D1C0);
 const _cMagenta = Color(0xFFFF4D9A);
 const _cSunshine = Color(0xFFFFD166);
+const _cCosmicPurple = Color(0xFF6B5B95); // New color for warmth
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -29,7 +31,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   late Animation<double> _bgMove;
   late AnimationController _cardAnim;
   late Animation<double> _cardScale;
+  late Animation<Offset> _cardSlide;
   late AnimationController _starsAnim;
+  late AnimationController _taglineAnim;
+  late Animation<double> _taglineFade;
   final List<Offset> _stars = [];
   final Random _rng = Random();
 
@@ -38,9 +43,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     super.initState();
     _anim = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat(reverse: true);
     _bgMove = CurvedAnimation(parent: _anim, curve: Curves.easeInOutSine);
-    _cardAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 500))..forward();
+    _cardAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 700))..forward();
     _cardScale = Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: _cardAnim, curve: Curves.easeOut));
+    _cardSlide = Tween<Offset>(begin: const Offset(0, 0.2), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _cardAnim, curve: Curves.easeOutCubic));
     _starsAnim = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
+    _taglineAnim = AnimationController(vsync: this, duration: const Duration(seconds: 2))..forward();
+    _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _taglineAnim, curve: Curves.easeIn));
     _generateStars();
     _initializeConsentFlow();
   }
@@ -57,6 +66,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _anim.dispose();
     _cardAnim.dispose();
     _starsAnim.dispose();
+    _taglineAnim.dispose();
     _email.dispose();
     _password.dispose();
     super.dispose();
@@ -107,70 +117,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             ConsentForm.loadAndShowConsentFormIfRequired((FormError? error) {
               if (error != null) {
                 debugPrint("⚠️ Consent form error: ${error.message}");
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      "Consent form error: ${error.message}",
-                      style: GoogleFonts.orbitron(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w400,
-                        fontSize: 14,
-                      ),
-                    ),
-                    backgroundColor: _cMagenta.withOpacity(0.8),
-                  ),
-                );
+                _snack("Consent form error: ${error.message}");
               } else {
                 debugPrint("✅ Consent form displayed successfully.");
               }
             });
           } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(
-                  "No consent changes available right now.",
-                  style: GoogleFonts.orbitron(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w400,
-                    fontSize: 14,
-                  ),
-                ),
-                backgroundColor: _cMagenta.withOpacity(0.8),
-              ),
-            );
+            _snack("No consent changes available right now.");
           }
         } catch (e) {
           debugPrint("❌ isConsentFormAvailable() failed: $e");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                "Consent check failed: $e",
-                style: GoogleFonts.orbitron(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w400,
-                  fontSize: 14,
-                ),
-              ),
-              backgroundColor: _cMagenta.withOpacity(0.8),
-            ),
-          );
+          _snack("Consent check failed: $e");
         }
       },
           (FormError error) {
         debugPrint("⚠️ requestConsentInfoUpdate failed: ${error.message}");
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              "Consent update failed: ${error.message}",
-              style: GoogleFonts.orbitron(
-                color: Colors.white,
-                fontWeight: FontWeight.w400,
-                fontSize: 14,
-              ),
-            ),
-            backgroundColor: _cMagenta.withOpacity(0.8),
-          ),
-        );
+        _snack("Consent update failed: ${error.message}");
       },
     );
   }
@@ -195,6 +157,24 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           return;
         }
       }
+      // 🌟 Check VIP status after login or signup
+      try {
+        final user = _client.auth.currentUser;
+        if (user != null) {
+          final response = await _client
+              .from('profiles')
+              .select('is_vip')
+              .eq('id', user.id)
+              .maybeSingle();
+
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setBool('is_vip', response?['is_vip'] ?? false);
+
+          debugPrint("💫 VIP status saved locally: ${response?['is_vip']}");
+        }
+      } catch (e) {
+        debugPrint("⚠️ Could not check VIP status: $e");
+      }
 
       if (mounted) {
         await Future.delayed(const Duration(milliseconds: 300));
@@ -213,13 +193,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     SnackBar(
       content: Text(
         msg,
-        style: GoogleFonts.orbitron(
+        style: GoogleFonts.poppins(
           color: Colors.white,
           fontWeight: FontWeight.w400,
           fontSize: 14,
         ),
       ),
       backgroundColor: _cMagenta.withOpacity(0.8),
+      behavior: SnackBarBehavior.floating,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
     ),
   );
 
@@ -247,8 +229,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       animation: _bgMove,
       builder: (context, child) {
         final colors = [
-          Color.lerp(_cTurquoise, _cMagenta, _bgMove.value)!,
+          Color.lerp(_cTurquoise, _cCosmicPurple, _bgMove.value)!,
           Color.lerp(_cMagenta, _cSunshine, 0.5 + 0.4 * _bgMove.value)!,
+          _cCosmicPurple.withOpacity(0.7), // Added for warmth
         ];
         return Scaffold(
           resizeToAvoidBottomInset: true,
@@ -261,6 +244,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: colors,
+                    stops: const [0.0, 0.5, 1.0],
                   ),
                 ),
               ),
@@ -279,9 +263,12 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     padding: const EdgeInsets.all(24),
                     child: ConstrainedBox(
                       constraints: const BoxConstraints(maxWidth: 400),
-                      child: ScaleTransition(
-                        scale: _cardScale,
-                        child: _authCard(),
+                      child: SlideTransition(
+                        position: _cardSlide,
+                        child: ScaleTransition(
+                          scale: _cardScale,
+                          child: _authCard(),
+                        ),
                       ),
                     ),
                   ),
@@ -325,13 +312,31 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Image.asset('assets/images/logolot.png', width: 220, height: 150, fit: BoxFit.contain),
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: _cSunshine.withOpacity(0.4),
+                      blurRadius: 20,
+                      spreadRadius: 5,
+                    ),
+                  ],
+                ),
+                child: Image.asset(
+                  'assets/images/logolot.png',
+                  width: 220,
+                  height: 150,
+                  fit: BoxFit.contain,
+                ),
+              ),
               const SizedBox(height: 10),
               Text(
                 '✨ Astro Lotto Luck',
+                textAlign: TextAlign.center,
                 style: GoogleFonts.orbitron(
                   fontSize: 24,
-                  fontWeight: FontWeight.w400,
+                  fontWeight: FontWeight.w600,
                   color: Colors.white,
                   letterSpacing: 1.2,
                   shadows: [
@@ -340,10 +345,24 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 ),
               ),
               const SizedBox(height: 8),
+              FadeTransition(
+                opacity: _taglineFade,
+                child: Text(
+                  'Unlock Your Cosmic Journey',
+                  textAlign: TextAlign.center,
+                  style: GoogleFonts.poppins(
+                    color: _cSunshine.withOpacity(0.8),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500,
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
               Text(
                 _isSignInMode ? 'Welcome back, cosmic dreamer' : 'Create your star-bound account',
                 textAlign: TextAlign.center,
-                style: GoogleFonts.orbitron(
+                style: GoogleFonts.poppins(
                   color: Colors.white70,
                   fontSize: 13.5,
                   fontWeight: FontWeight.w400,
@@ -388,7 +407,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   ),
                   Text(
                     _isSignInMode ? 'Sign in' : 'Sign up',
-                    style: GoogleFonts.orbitron(
+                    style: GoogleFonts.poppins(
                       color: Colors.white,
                       fontSize: 14,
                       fontWeight: FontWeight.w400,
@@ -401,8 +420,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 width: double.infinity,
                 height: 50,
                 child: AnimatedBuilder(
-                  animation: _starsAnim,
+                  animation: Listenable.merge([_starsAnim, _taglineAnim]),
                   builder: (context, child) {
+                    final glow = 0.3 + (_taglineAnim.value * 0.3);
                     return Stack(
                       children: [
                         if (_isLoading)
@@ -410,29 +430,47 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                             size: Size.infinite,
                             painter: SparklePainter(_starsAnim.value),
                           ),
-                        ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _cSunshine,
-                            foregroundColor: Colors.black,
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                            elevation: 8,
-                            shadowColor: _cSunshine.withOpacity(0.5),
-                          ),
-                          onPressed: _isLoading ? null : _submit,
-                          child: _isLoading
-                              ? const SizedBox(
-                            height: 22,
-                            width: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2.4,
-                              valueColor: AlwaysStoppedAnimation(Colors.black),
+                        Container(
+                          decoration: BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [_cSunshine, _cTurquoise],
+                              begin: Alignment.topLeft,
+                              end: Alignment.bottomRight,
                             ),
-                          )
-                              : Text(
-                            _isSignInMode ? 'Enter Your Luck' : 'Join the Stars',
-                            style: GoogleFonts.orbitron(
-                              fontWeight: FontWeight.w400,
-                              fontSize: 15,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: _cSunshine.withOpacity(glow),
+                                blurRadius: 10,
+                                spreadRadius: 2,
+                              ),
+                            ],
+                          ),
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.transparent,
+                              foregroundColor: Colors.black,
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                              elevation: 0,
+                              shadowColor: Colors.transparent,
+                            ),
+                            onPressed: _isLoading ? null : _submit,
+                            child: _isLoading
+                                ? const SizedBox(
+                              height: 22,
+                              width: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.4,
+                                valueColor: AlwaysStoppedAnimation(Colors.black),
+                              ),
+                            )
+                                : Text(
+                              _isSignInMode ? 'Enter Your Luck' : 'Join the Stars',
+                              style: GoogleFonts.orbitron(
+                                fontWeight: FontWeight.w600,
+                                fontSize: 15,
+                                color: Colors.black,
+                              ),
                             ),
                           ),
                         ),
@@ -449,7 +487,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                   icon: const Icon(Icons.privacy_tip_outlined, color: Colors.white70, size: 18),
                   label: Text(
                     'Manage Consent',
-                    style: GoogleFonts.orbitron(
+                    style: GoogleFonts.poppins(
                       color: Colors.white70,
                       fontSize: 13,
                       fontWeight: FontWeight.w400,
@@ -466,10 +504,22 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               const SizedBox(height: 14),
               Text(
                 '18+ only • Play responsibly',
-                style: GoogleFonts.orbitron(
+                style: GoogleFonts.poppins(
                   color: Colors.white70,
                   fontSize: 11,
                   fontWeight: FontWeight.w400,
+                ),
+              ),
+              const SizedBox(height: 10),
+              TextButton(
+                onPressed: () => Navigator.pushNamed(context, '/about'),
+                child: Text(
+                  "About this app • Cosmic Disclaimer",
+                  style: GoogleFonts.poppins(
+                    color: Colors.white70,
+                    fontSize: 12.5,
+                    decoration: TextDecoration.underline,
+                  ),
                 ),
               ),
             ],
@@ -511,14 +561,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
             controller: controller,
             keyboardType: keyboardType,
             obscureText: obscure,
-            style: GoogleFonts.orbitron(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w400),
+            style: GoogleFonts.poppins(color: Colors.white, fontSize: 13.5, fontWeight: FontWeight.w400),
             autofillHints: autofillHints,
             textInputAction: textInputAction,
             onSubmitted: onSubmitted,
             decoration: InputDecoration(
               prefixIcon: icon != null ? Icon(icon, color: Colors.white70) : null,
               hintText: hint,
-              hintStyle: GoogleFonts.orbitron(color: Colors.white70, fontWeight: FontWeight.w400),
+              hintStyle: GoogleFonts.poppins(color: Colors.white70, fontWeight: FontWeight.w400),
               border: InputBorder.none,
               contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
               suffixIcon: suffix,

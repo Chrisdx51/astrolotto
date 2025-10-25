@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
+/// Data model for astronomy data (moon & sun).
 class AstroData {
   final String moonPhaseName;
   final double moonIllumination;
@@ -9,7 +10,7 @@ class AstroData {
   final String sunRise;
   final String sunSet;
 
-  AstroData({
+  const AstroData({
     required this.moonPhaseName,
     required this.moonIllumination,
     required this.moonPhaseIcon,
@@ -18,9 +19,11 @@ class AstroData {
   });
 }
 
+/// Handles fetching moon/sun data and zodiac calculations.
 class AstroService {
   final String baseUrl = "https://api.astronomyapi.com/api/v2";
 
+  /// Fetches moon and sun data for a given location and date.
   Future<AstroData?> fetchAstroData({
     required double latitude,
     required double longitude,
@@ -29,11 +32,13 @@ class AstroService {
     final appId = dotenv.env['ASTRO_API_APP_ID'];
     final appSecret = dotenv.env['ASTRO_API_SECRET'];
 
+    // ✅ Validate .env setup
     if (appId == null || appSecret == null || appId.isEmpty || appSecret.isEmpty) {
-      print("❌ Missing ASTRO_API_APP_ID or ASTRO_API_SECRET in .env");
+      print("❌ Missing ASTRO_API_APP_ID or ASTRO_API_SECRET in .env file.");
       return null;
     }
 
+    // ✅ Build authorization header
     final credentials = base64Encode(utf8.encode("$appId:$appSecret"));
     final headers = {
       "Authorization": "Basic $credentials",
@@ -41,9 +46,6 @@ class AstroService {
     };
 
     final dateStr = date.toIso8601String().split('T')[0];
-
-    // NOTE: /bodies/positions may not include phase/sunrise/sunset consistently.
-    // We keep this call as-is (since you’re already using it), then extract safely.
     final url = Uri.parse(
       "$baseUrl/bodies/positions"
           "?latitude=${Uri.encodeQueryComponent(latitude.toString())}"
@@ -62,9 +64,9 @@ class AstroService {
       }
 
       final body = jsonDecode(response.body);
+      final rows = (body['data']?['table']?['rows'] as List?) ?? [];
 
-      // Defensive extracts
-      final rows = (body['data']?['table']?['rows'] as List?) ?? const [];
+      // Helper to locate specific celestial body data.
       Map<String, dynamic>? findBody(String name) {
         for (final r in rows) {
           final entry = r['entry'];
@@ -79,9 +81,9 @@ class AstroService {
       }
 
       final moonPos = findBody('Moon');
-      final sunPos  = findBody('Sun');
+      final sunPos = findBody('Sun');
 
-      // Moon phase (may be missing on this endpoint)
+      // ✅ Extract moon phase and illumination safely
       final phase = (moonPos?['phase'] as Map?) ?? {};
       final phaseName = (phase['name'] as String?)?.trim().isNotEmpty == true
           ? phase['name'] as String
@@ -90,10 +92,9 @@ class AstroService {
       final moonIllum = illumRaw is num ? illumRaw.toDouble() : 0.0;
       final moonIcon = _getMoonIcon(phaseName);
 
-      // Sunrise/sunset are typically not in this response; keep placeholders
-      // unless you later switch to the dedicated sunrise/sunset endpoint.
+      // ✅ Placeholder sunrise/sunset (this endpoint rarely returns them)
       final sunRise = (sunPos?['rise'] ?? sunPos?['hdate'])?.toString() ?? "—";
-      final sunSet  = (sunPos?['set']  ?? sunPos?['hdate'])?.toString() ?? "—";
+      final sunSet = (sunPos?['set'] ?? sunPos?['hdate'])?.toString() ?? "—";
 
       return AstroData(
         moonPhaseName: phaseName,
@@ -108,6 +109,7 @@ class AstroService {
     }
   }
 
+  /// 🔮 Converts a phase name into a moon emoji for display.
   String _getMoonIcon(String phaseName) {
     final p = phaseName.toLowerCase();
     if (p.contains("new")) return "🌑";
@@ -119,5 +121,22 @@ class AstroService {
     if (p.contains("last quarter")) return "🌗";
     if (p.contains("waning crescent")) return "🌘";
     return "🌙";
+  }
+
+  /// ♈ Gets the zodiac sign for a given Date of Birth or date.
+  static String getZodiacSign(DateTime dob) {
+    final m = dob.month, d = dob.day;
+    if ((m == 3 && d >= 21) || (m == 4 && d <= 19)) return 'Aries';
+    if ((m == 4 && d >= 20) || (m == 5 && d <= 20)) return 'Taurus';
+    if ((m == 5 && d >= 21) || (m == 6 && d <= 20)) return 'Gemini';
+    if ((m == 6 && d >= 21) || (m == 7 && d <= 22)) return 'Cancer';
+    if ((m == 7 && d >= 23) || (m == 8 && d <= 22)) return 'Leo';
+    if ((m == 8 && d >= 23) || (m == 9 && d <= 22)) return 'Virgo';
+    if ((m == 9 && d >= 23) || (m == 10 && d <= 22)) return 'Libra';
+    if ((m == 10 && d >= 23) || (m == 11 && d <= 21)) return 'Scorpio';
+    if ((m == 11 && d >= 22) || (m == 12 && d <= 21)) return 'Sagittarius';
+    if ((m == 12 && d >= 22) || (m == 1 && d <= 19)) return 'Capricorn';
+    if ((m == 1 && d >= 20) || (m == 2 && d <= 18)) return 'Aquarius';
+    return 'Pisces';
   }
 }

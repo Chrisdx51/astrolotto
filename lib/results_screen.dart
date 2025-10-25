@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -40,6 +41,7 @@ class ResultScreen extends StatefulWidget {
 }
 
 class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMixin {
+  // ── original animation + state ──────────────────────────────────────────────
   late final AnimationController _anim;
   late final Animation<double> _pulse;
   late final AnimationController _bgAnim;
@@ -62,32 +64,60 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
   late final AnimationController _fadeQuote;
   late final AnimationController _fadeHoroscope;
 
+  // ── NEW: AI + loading UI + live/breathing moon ─────────────────────────────
+  String? _aiMessage;
+  bool _aiLoading = true;
+
+  // Breathing moon
+  late final AnimationController _moonGlow; // 0..1 repeating
+  late final Animation<double> _moonValue;
+  String _liveMoonPhase = ""; // computed locally
+
+  // Loading phrase rotation
+  Timer? _phraseTimer;
+  int _phraseIndex = 0;
+  static const List<String> _loadingPhrases = [
+    "Drawing energy from the stars...",
+    "Aligning your cosmic fortune...",
+    "Consulting lunar wisdom...",
+    "Charging your lucky vibrations...",
+    "Reading today’s lunar field...",
+    "Synchronizing celestial insights...",
+    "Gathering cosmic energy... this can take up to 3 minutes."
+  ];
+
   @override
   void initState() {
     super.initState();
     _fetchHoroscope();
     _pickRandomQuote();
 
+    // Live moon phase name (local calc)
+    _liveMoonPhase = _computeMoonPhaseName(DateTime.now());
+
+    // AI (with daily cache)
+    _loadOrFetchAiMessage();
+
+    // Original animations
     _bgAnim = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat(reverse: true);
     _bgMove = CurvedAnimation(parent: _bgAnim, curve: Curves.easeInOut);
 
     _anim = AnimationController(vsync: this, duration: const Duration(seconds: 2))..repeat(reverse: true);
-    _pulse = Tween<double>(begin: 0.95, end: 1.05).animate(
-      CurvedAnimation(parent: _anim, curve: Curves.easeInOutSine),
-    );
+    _pulse = Tween<double>(begin: 0.95, end: 1.05).animate(CurvedAnimation(parent: _anim, curve: Curves.easeInOutSine));
 
     _fadeQuote = AnimationController(vsync: this, duration: const Duration(seconds: 2));
     _fadeHoroscope = AnimationController(vsync: this, duration: const Duration(seconds: 2));
 
     _starsAnim = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat();
     _infoCardAnim = AnimationController(vsync: this, duration: const Duration(milliseconds: 500));
-    _infoCardScale = Tween<double>(begin: 0.9, end: 1.0).animate(
-      CurvedAnimation(parent: _infoCardAnim, curve: Curves.easeOut),
-    );
+    _infoCardScale = Tween<double>(begin: 0.9, end: 1.0).animate(CurvedAnimation(parent: _infoCardAnim, curve: Curves.easeOut));
 
     _confettiController = ConfettiController(duration: const Duration(seconds: 3));
-
     _generateStars();
+
+    // Breathing moon (soft glow)
+    _moonGlow = AnimationController(vsync: this, duration: const Duration(seconds: 3))..repeat(reverse: true);
+    _moonValue = CurvedAnimation(parent: _moonGlow, curve: Curves.easeInOut);
 
     Future.delayed(const Duration(milliseconds: 800), () {
       if (!mounted) return;
@@ -97,10 +127,7 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
     });
 
     final totalBalls = widget.mainNumbers.length + widget.bonusNumbers.length;
-    _ballAnims = List.generate(
-      totalBalls,
-          (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 500)),
-    );
+    _ballAnims = List.generate(totalBalls, (i) => AnimationController(vsync: this, duration: const Duration(milliseconds: 500)));
 
     for (int i = 0; i < totalBalls; i++) {
       Future.delayed(Duration(milliseconds: 250 * i), () {
@@ -108,27 +135,14 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
       });
     }
 
-    Future.delayed(const Duration(seconds: 1), () {
-      if (mounted) _fadeQuote.forward();
-    });
-    Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) _fadeHoroscope.forward();
-    });
-  }
+    Future.delayed(const Duration(seconds: 1), () => _fadeQuote.forward());
+    Future.delayed(const Duration(seconds: 2), () => _fadeHoroscope.forward());
 
-  void _generateStars() {
-    _stars.clear();
-    for (int i = 0; i < 50; i++) {
-      _stars.add(Offset(_rng.nextDouble() * 400, _rng.nextDouble() * 800));
-    }
-  }
-
-  Future<void> _playCelebrateSound() async {
-    try {
-      await _audioPlayer.play(AssetSource('sounds/celebrate.mp3'));
-    } catch (e) {
-      debugPrint('⚠️ Sound error: $e');
-    }
+    // Rotate loading phrases every 10s while AI is loading
+    _phraseTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+      if (!_aiLoading) return;
+      setState(() => _phraseIndex = (_phraseIndex + 1) % _loadingPhrases.length);
+    });
   }
 
   @override
@@ -142,10 +156,28 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
     _confettiController.dispose();
     _audioPlayer.stop();
     _audioPlayer.dispose();
+    _phraseTimer?.cancel();
+    _moonGlow.dispose();
     for (var c in _ballAnims) {
       c.dispose();
     }
     super.dispose();
+  }
+
+  // ── original helpers ────────────────────────────────────────────────────────
+  void _generateStars() {
+    _stars.clear();
+    for (int i = 0; i < 50; i++) {
+      _stars.add(Offset(_rng.nextDouble() * 400, _rng.nextDouble() * 800));
+    }
+  }
+
+  Future<void> _playCelebrateSound() async {
+    try {
+      await _audioPlayer.play(AssetSource('sounds/celebrate.mp3'));
+    } catch (e) {
+      debugPrint('⚠️ Sound error: $e');
+    }
   }
 
   Future<void> _fetchHoroscope() async {
@@ -229,12 +261,88 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
 Main: $nums$bonus
 
 Zodiac: ${widget.zodiac}
-Moon: ${widget.moonPhase}
+Moon: ${_liveMoonPhase.isNotEmpty ? _liveMoonPhase : widget.moonPhase}
 Country: ${widget.country}
 
 ✨ Generated by Astro Lotto Luck ✨
 ''';
     Share.share(text, subject: 'My Astro Lucky Numbers 🌠');
+  }
+
+  // ── NEW: daily cache key for AI (same message for same details within a day)
+  String _dailyAiKey() {
+    final now = DateTime.now().toUtc();
+    final date = "${now.year}-${now.month}-${now.day}";
+    return "ai_${widget.name}|${widget.zodiac}|${widget.country}|${widget.moonPhase}|$date";
+    // (uses the original provided moonPhase so cache matches your generator inputs)
+  }
+
+  // ── NEW: fetch AI with caching + rotating phrases + progress bar
+  Future<void> _loadOrFetchAiMessage() async {
+    final prefs = await SharedPreferences.getInstance();
+    final key = _dailyAiKey();
+    final cached = prefs.getString(key);
+
+    if (cached != null) {
+      setState(() {
+        _aiMessage = cached;
+        _aiLoading = false;
+      });
+      return;
+    }
+
+    try {
+      setState(() => _aiLoading = true);
+
+      final uri = Uri.parse("https://auranaguidance.co.uk/api/lottofortune");
+      final livePhase = _liveMoonPhase.isNotEmpty ? _liveMoonPhase : widget.moonPhase;
+
+      final prompt = '''
+Create a concise, uplifting lotto fortune for ${widget.name}, a ${widget.zodiac} in ${widget.country}, under the ${livePhase} moon.
+Use mystical language but keep it under 40 words. Subtly acknowledge the moon phase’s influence on luck.
+Numbers drawn today: ${widget.mainNumbers.join(", ")}.
+''';
+
+      final res = await http.post(
+        uri,
+        headers: {"Content-Type": "application/json"},
+        body: jsonEncode({"prompt": prompt}),
+      );
+
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        // ✅ Your API returns "result" (singular)
+        final msg = (data['result'] as String?)?.trim();
+        setState(() => _aiMessage = (msg?.isNotEmpty == true)
+            ? msg
+            : (_quote ?? "✨ The stars whisper fortune your way, ${widget.name}."));
+        if (_aiMessage != null) {
+          await prefs.setString(key, _aiMessage!);
+        }
+      } else {
+        setState(() => _aiMessage = _quote ?? "✨ The universe hums with unseen luck — stay aligned.");
+      }
+    } catch (_) {
+      setState(() => _aiMessage = _quote ?? "🌙 The cosmic link is faint — try again later.");
+    } finally {
+      setState(() => _aiLoading = false);
+    }
+  }
+
+  // ── NEW: local moon phase calculation (simple + fast)
+  String _computeMoonPhaseName(DateTime date) {
+    const synodic = 29.53058867; // days
+    final ref = DateTime.utc(2000, 1, 6, 18, 14);
+    final days = date.toUtc().difference(ref).inSeconds / 86400.0;
+    final phase = (days % synodic) / synodic; // 0..1
+    if (phase < 0.03 || phase > 0.97) return "New Moon";
+    if (phase < 0.22) return "Waxing Crescent";
+    if (phase < 0.28) return "First Quarter";
+    if (phase < 0.47) return "Waxing Gibbous";
+    if (phase < 0.53) return "Full Moon";
+    if (phase < 0.72) return "Waning Gibbous";
+    if (phase < 0.78) return "Last Quarter";
+    return "Waning Crescent";
   }
 
   @override
@@ -295,13 +403,17 @@ Country: ${widget.country}
                 Expanded(
                   child: SingleChildScrollView(
                     physics: const BouncingScrollPhysics(),
-                    // 👇 extra bottom padding so nothing gets hidden behind the bottom banner
                     padding: const EdgeInsets.fromLTRB(16, 12, 16, 120),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Image.asset('assets/images/logolot.png', width: 220),
                         const SizedBox(height: 10),
+
+                        // 🌕 NEW: Moon "breathing" animation box
+                        _moonBox(),
+                        const SizedBox(height: 10),
+
                         ScaleTransition(
                           scale: _pulse,
                           child: Text(
@@ -350,7 +462,10 @@ Country: ${widget.country}
                         ),
 
                         const SizedBox(height: 28),
+
+                        // 🔮 AI box (progress → message)
                         FadeTransition(opacity: _fadeQuote, child: _magicBox()),
+
                         const SizedBox(height: 20),
                         FadeTransition(opacity: _fadeHoroscope, child: _horoscopeBox()),
                         const SizedBox(height: 30),
@@ -364,11 +479,10 @@ Country: ${widget.country}
                             "🔞 18+ • Entertainment Only • This app does not offer or promote gambling.\nNumbers generated are for fun, inspiration & spiritual entertainment.\nThere is no guarantee of winnings — please enjoy responsibly 💫",
                             textAlign: TextAlign.center,
                             style: GoogleFonts.orbitron(
-                              color: Colors.white70,
-                              fontSize: 12,
-                              height: 1.5,
-                              fontWeight: FontWeight.w400,
-                            ),
+                                color: Colors.white70,
+                                fontSize: 12,
+                                height: 1.5,
+                                fontWeight: FontWeight.w400),
                           ),
                         ),
                       ],
@@ -380,6 +494,59 @@ Country: ${widget.country}
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // 🌕 Breathing moon box (simple glow)
+  Widget _moonBox() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      margin: const EdgeInsets.symmetric(horizontal: 20),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(colors: [Colors.white.withOpacity(0.12), Colors.white.withOpacity(0.05)]),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: _cSunshine.withOpacity(0.5), width: 1.2),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          AnimatedBuilder(
+            animation: _moonValue,
+            builder: (context, _) {
+              final glow = 0.35 + 0.45 * _moonValue.value; // 0.35..0.8
+              return Container(
+                width: 66,
+                height: 66,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: RadialGradient(
+                    colors: [
+                      Colors.white.withOpacity(glow),
+                      Colors.white.withOpacity(glow * 0.2),
+                      Colors.transparent,
+                    ],
+                    stops: const [0.3, 0.6, 1.0],
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: _cSunshine.withOpacity(glow * 0.8),
+                      blurRadius: 18 + 10 * _moonValue.value,
+                      spreadRadius: 2 + 2 * _moonValue.value,
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+          const SizedBox(width: 14),
+          Flexible(
+            child: Text(
+              "Live Moon Phase: ${_liveMoonPhase.isEmpty ? widget.moonPhase : _liveMoonPhase}",
+              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 14, height: 1.4),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -424,6 +591,7 @@ Country: ${widget.country}
     );
   }
 
+  // 🔮 AI progress/message box
   Widget _magicBox() => Container(
     padding: const EdgeInsets.all(16),
     margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -432,8 +600,24 @@ Country: ${widget.country}
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: _cSunshine.withOpacity(0.5), width: 1.2),
     ),
-    child: Text(
-      _quote ?? "✨ The stars are aligning for you...",
+    child: _aiLoading
+        ? Column(
+      children: [
+        LinearProgressIndicator(
+          color: _cSunshine,
+          backgroundColor: Colors.white.withOpacity(0.2),
+          minHeight: 4,
+        ),
+        const SizedBox(height: 12),
+        Text(
+          _loadingPhrases[_phraseIndex],
+          textAlign: TextAlign.center,
+          style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 14, height: 1.5),
+        ),
+      ],
+    )
+        : Text(
+      _aiMessage ?? _quote ?? "✨ The stars are aligning for you...",
       textAlign: TextAlign.center,
       style: GoogleFonts.orbitron(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w400, height: 1.5),
     ),

@@ -12,6 +12,9 @@ import 'main.dart';
 import 'cosmic_insights_screen.dart';
 import 'spin_wheel_screen.dart';
 import 'saved_draws_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'screens/premium_realm_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 const _cTurquoise = Color(0xFF12D1C0);
 const _cMagenta = Color(0xFFFF4D9A);
@@ -42,6 +45,35 @@ class _GeneratorScreenState extends State<GeneratorScreen>
     with TickerProviderStateMixin {
   InterstitialAd? _interstitialAd;
   bool _isAdReady = false;
+  // 💎 VIP status flag
+  bool _isVip = false;
+
+// 🧿 Check VIP status directly from Supabase
+  Future<void> _checkVipStatus() async {
+    try {
+      final supabase = Supabase.instance.client;
+      final user = supabase.auth.currentUser;
+      if (user == null) return; // Not logged in
+
+      final response = await supabase
+          .from('profiles')
+          .select('is_vip')
+          .eq('id', user.id)
+          .maybeSingle();
+
+      if (response != null && response['is_vip'] == true) {
+        setState(() => _isVip = true);
+        debugPrint('✅ VIP status confirmed from Supabase');
+      } else {
+        setState(() => _isVip = false);
+        debugPrint('🚫 Not VIP');
+      }
+    } catch (e) {
+      debugPrint('⚠️ VIP check failed: $e');
+    }
+  }
+
+
 
   BannerAd? _topBanner;
   BannerAd? _bottomBanner;
@@ -64,10 +96,15 @@ class _GeneratorScreenState extends State<GeneratorScreen>
   late final Animation<double> _logoFall;
   late final Animation<double> _logoBounce;
 
+
+
   @override
   void initState() {
     super.initState();
     _loadInterstitialAd();
+    _loadVipStatus();
+    _checkVipStatus(); // 🔮 Check Supabase for VIP flag
+
 
     // Cache banners once (don’t recreate inside build)
     _topBanner = BannerAd(
@@ -106,6 +143,8 @@ class _GeneratorScreenState extends State<GeneratorScreen>
     WidgetsBinding.instance.addPostFrameCallback((_) => _logoAnim.forward());
   }
 
+
+
   @override
   void dispose() {
     _ballsAnim.dispose();
@@ -117,6 +156,14 @@ class _GeneratorScreenState extends State<GeneratorScreen>
     _bottomBanner?.dispose();
     super.dispose();
   }
+
+  Future<void> _loadVipStatus() async {
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _isVip = prefs.getBool('is_vip') ?? false;
+    });
+  }
+
 
   void _loadInterstitialAd() {
     InterstitialAd.load(
@@ -190,6 +237,7 @@ class _GeneratorScreenState extends State<GeneratorScreen>
       _loadInterstitialAd();
     }
   }
+
 
   Future<void> _navigateToResults(List<int> main, List<int> bonus) async {
     await Navigator.push(
@@ -331,27 +379,6 @@ class _GeneratorScreenState extends State<GeneratorScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       resizeToAvoidBottomInset: true,
-      appBar: AppBar(
-        backgroundColor: const Color(0xFF0F1430),
-        centerTitle: true,
-        title: const Text(
-          "Astro Lotto Luck",
-          style: TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
-          ),
-        ),
-        actions: [
-          IconButton(
-            tooltip: 'Premium Realm',
-            icon: const Icon(Icons.auto_awesome, color: Colors.amberAccent),
-            onPressed: () {
-              Navigator.pushNamed(context, '/premium');
-            },
-          ),
-        ],
-      ),
       body: Stack(
         children: [
           const _AnimatedBackground(),
@@ -362,12 +389,13 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                 padding: const EdgeInsets.fromLTRB(18, 12, 18, 30),
                 child: Column(
                   children: [
-                    if (_topBanner != null)
+                    if (!_isVip && _topBanner != null)
                       SizedBox(
                         height: 50,
                         width: double.infinity,
                         child: AdWidget(ad: _topBanner!),
                       ),
+
                     AnimatedBuilder(
                       animation: _logoAnim,
                       builder: (context, child) {
@@ -442,17 +470,23 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                     const SizedBox(height: 25),
                     _logoutButton(),
                     const SizedBox(height: 25),
-                    if (_bottomBanner != null)
+                    if (!_isVip && _bottomBanner != null)
                       SizedBox(
                         height: 50,
                         width: double.infinity,
                         child: AdWidget(ad: _bottomBanner!),
                       ),
+
                     const SizedBox(height: 25),
                     const Divider(color: Colors.white24),
                     _footerNote(),
                     const SizedBox(height: 25),
                     _shareAppTab(),
+                    const SizedBox(height: 20),
+
+                    // 🌟 VIP Upgrade Button
+                    if (!_isVip) _upgradeToVipButton(),
+
                   ],
                 ),
               ),
@@ -462,6 +496,52 @@ class _GeneratorScreenState extends State<GeneratorScreen>
       ),
     );
   }
+
+  Widget _upgradeToVipButton() => Padding(
+    padding: const EdgeInsets.symmetric(horizontal: 12),
+    child: GestureDetector(
+      onTap: _showVipPopup,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 18),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+            colors: [_cTurquoise, _cMagenta],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+              color: _cTurquoise.withOpacity(0.4),
+              blurRadius: 12,
+              spreadRadius: 2,
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(Icons.auto_awesome, color: Colors.white, size: 22),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                "Upgrade to VIP — Deeper Cosmic Insights Await",
+                textAlign: TextAlign.center,
+                style: GoogleFonts.orbitron(
+                  color: Colors.white,
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+
+
 
   Widget _fallingLogo() => Stack(
     alignment: Alignment.center,
@@ -786,6 +866,15 @@ class _GeneratorScreenState extends State<GeneratorScreen>
             MaterialPageRoute(
                 builder: (_) => const SavedDrawsScreen())),
       ),
+      if (_isVip)
+        _AnimatedCosmicButton(
+          label: "👑 Enter VIP Realm",
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const PremiumRealmScreen()),
+          ),
+        ),
+
     ],
   );
 
@@ -862,6 +951,194 @@ class _GeneratorScreenState extends State<GeneratorScreen>
 
   void _snack(String msg) =>
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+
+// ───────────────────────────────
+// VIP UPGRADE POPUP
+// ───────────────────────────────
+  void _showVipPopup() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        return Dialog(
+          backgroundColor: const Color(0xFF10162C),
+          insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          child: Container(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: Colors.amberAccent.withOpacity(0.4), width: 1.5),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.amberAccent.withOpacity(0.15),
+                  blurRadius: 20,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: Padding(
+              padding: const EdgeInsets.all(22),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Image.asset('assets/images/logolot.png', height: 80),
+                    const SizedBox(height: 14),
+                    Text(
+                      "🌟 Unlock VIP Cosmic Access",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.orbitron(
+                        color: Colors.amberAccent,
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    Text(
+                      "Step deeper into the Cosmos with exclusive access powered by the advanced Cosmos AI System. "
+                          "Gain personal guidance, ad-free serenity, and pages unavailable to regular users. "
+                          "The stars align to create your most accurate and personalized lottery experiences ever.",
+                      textAlign: TextAlign.center,
+                      style: GoogleFonts.poppins(
+                        color: Colors.white70,
+                        fontSize: 15,
+                        height: 1.6,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const Divider(color: Colors.white24, thickness: 1),
+                    const SizedBox(height: 16),
+                    const _VipFeature(
+                        icon: Icons.auto_awesome,
+                        text: "The VIP Generator — deeper, more powerful number readings using Cosmos AI."),
+                    const _VipFeature(
+                        icon: Icons.psychology,
+                        text: "Cosmos AI Personalization — your data aligns with celestial trends for unique insights."),
+                    const _VipFeature(
+                        icon: Icons.self_improvement,
+                        text: "Ad-Free Experience — peaceful focus during every reading."),
+                    const _VipFeature(
+                        icon: Icons.nightlight_round,
+                        text: "Dream → Numbers, Manifestation Journal & Meditation Rooms."),
+                    const _VipFeature(
+                        icon: Icons.wb_sunny,
+                        text: "Daily Cosmic Forecast & Lucky Crystal insights."),
+                    const _VipFeature(
+                        icon: Icons.star_border,
+                        text: "Early access to new features & spiritual events."),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: () async {
+                          final supabase = Supabase.instance.client;
+                          final prefs = await SharedPreferences.getInstance();
+
+                          try {
+                            // get current Supabase user
+                            final user = supabase.auth.currentUser;
+                            if (user == null) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Please log in first.")),
+                              );
+                              return;
+                            }
+
+                            // update VIP flag in Supabase
+                            await supabase
+                                .from('profiles')
+                                .update({'is_vip': true})
+                                .eq('id', user.id);
+
+                            // save locally
+                            await prefs.setBool('is_vip', true);
+
+                            // refresh UI
+                            if (context.mounted) {
+                              Navigator.pop(context); // close popup
+                              setState(() => _isVip = true);
+
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                    "🌟 VIP access unlocked! Welcome to the Cosmos Realm!",
+                                    style: TextStyle(color: Colors.white),
+                                  ),
+                                  backgroundColor: Colors.teal,
+                                  behavior: SnackBarBehavior.floating,
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            debugPrint("❌ VIP upgrade error: $e");
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text("Something went wrong: $e")),
+                            );
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF12D1C0),
+                          foregroundColor: const Color(0xFF0A003D),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14),
+                          ),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text(
+                          "Subscribe & Unlock VIP Access ✨",
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+
+                    TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const Text(
+                        "Maybe later",
+                        style: TextStyle(color: Colors.white60, fontSize: 14),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+
+}
+// 🌙 small helper widget for popup items
+class _VipFeature extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _VipFeature({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, color: Colors.amberAccent, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: GoogleFonts.poppins(
+                color: Colors.white70,
+                fontSize: 14,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 /// --------------------
@@ -904,6 +1181,7 @@ class _AnimatedBackgroundState extends State<_AnimatedBackground>
       _stars.add(Offset(_rng.nextDouble() * 400, _rng.nextDouble() * 800));
     }
   }
+
 
   @override
   void dispose() {

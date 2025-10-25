@@ -1,16 +1,22 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Dark theme for when the app first launches (no white screen) -->
+
+    <!-- 🚀 Launch screen theme (already used in your app) -->
     <style name="LaunchTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <!-- Black background while Flutter loads -->
-        <item name="android:windowBackground">@android:color/black</item>
-        <item name="android:forceDarkAllowed">false</item>
-        <item name="android:windowFullscreen">true</item>
-        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+        <item name="android:windowBackground">@drawable/launch_background</item>
     </style>
-    <!-- Keep dark theme after Flutter initializes -->
+
+    <!-- 🌙 Normal theme shown after Flutter UI loads -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
         <item name="android:windowBackground">@android:color/black</item>
     </style>
+
+    <!-- ✨ Transparent theme (needed for URL Launcher) -->
+    <style name="Theme.Transparent" parent="@android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+
 </resources>
