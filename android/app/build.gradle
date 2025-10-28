@@ -24,11 +24,9 @@ android {
         multiDexEnabled true
     }
 
-    // ✅ Enable Java 17 + desugaring
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
-        // ⚡ This line fixes your flutter_local_notifications error
         coreLibraryDesugaringEnabled true
     }
 
@@ -47,7 +45,6 @@ android {
 
     buildTypes {
         release {
-            // ✅ Use your real signing key instead of debug
             signingConfig signingConfigs.release
             minifyEnabled true
             shrinkResources true
@@ -64,12 +61,16 @@ flutter {
 }
 
 dependencies {
-    // ✅ Fix for Java desugaring (required for flutter_local_notifications)
     coreLibraryDesugaring 'com.android.tools:desugar_jdk_libs:2.0.4'
 
-    // 🪐 Existing dependencies
+    // ✅ Notification + Firebase Messaging support
+    implementation 'com.google.firebase:firebase-messaging:24.0.0'
+
+    // ✅ Existing dependencies
     implementation 'com.google.android.ump:user-messaging-platform:2.2.0'
     implementation 'com.google.android.gms:play-services-ads:23.2.0'
     implementation 'com.android.billingclient:billing:6.1.0'
-
 }
+
+// ✅ Required for Firebase Messaging + notifications to work
+apply plugin: 'com.google.gms.google-services'

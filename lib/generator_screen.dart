@@ -14,7 +14,8 @@ import 'spin_wheel_screen.dart';
 import 'saved_draws_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'screens/premium_realm_screen.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'cosmic_dice_screen.dart';
+
 
 const _cTurquoise = Color(0xFF12D1C0);
 const _cMagenta = Color(0xFFFF4D9A);
@@ -43,10 +44,19 @@ class GeneratorScreen extends StatefulWidget {
 
 class _GeneratorScreenState extends State<GeneratorScreen>
     with TickerProviderStateMixin {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _checkVipStatus(); // ✅ Live refresh of VIP every screen load
+  }
+
   InterstitialAd? _interstitialAd;
   bool _isAdReady = false;
   // 💎 VIP status flag
   bool _isVip = false;
+  int _adsShownThisHour = 0;
+  DateTime? _adWindowStart;
+
 
 // 🧿 Check VIP status directly from Supabase
   Future<void> _checkVipStatus() async {
@@ -62,11 +72,53 @@ class _GeneratorScreenState extends State<GeneratorScreen>
           .maybeSingle();
 
       if (response != null && response['is_vip'] == true) {
-        setState(() => _isVip = true);
-        debugPrint('✅ VIP status confirmed from Supabase');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_vip', true);
+
+        setState(() {
+          _isVip = true;
+
+          // ✅ Stop ALL ads if VIP
+          _topBanner?.dispose();
+          _bottomBanner?.dispose();
+          _interstitialAd?.dispose();
+          _topBanner = null;
+          _bottomBanner = null;
+          _interstitialAd = null;
+          _isAdReady = false;
+        });
+
+        debugPrint('✅ VIP restored — ads removed');
       } else {
-        setState(() => _isVip = false);
-        debugPrint('🚫 Not VIP');
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setBool('is_vip', false);
+
+        setState(() {
+          _isVip = false;
+
+          // ✅ Reload ads right away since NOT VIP anymore
+          if (_topBanner == null) {
+            _topBanner = BannerAd(
+              adUnitId: bannerAdUnitId,
+              size: AdSize.banner,
+              request: const AdRequest(),
+              listener: const BannerAdListener(),
+            )..load();
+          }
+
+          if (_bottomBanner == null) {
+            _bottomBanner = BannerAd(
+              adUnitId: bannerAdUnitId,
+              size: AdSize.banner,
+              request: const AdRequest(),
+              listener: const BannerAdListener(),
+            )..load();
+          }
+
+          _loadInterstitialAd();
+        });
+
+        debugPrint('🚫 Not VIP — ads enabled');
       }
     } catch (e) {
       debugPrint('⚠️ VIP check failed: $e');
@@ -101,25 +153,31 @@ class _GeneratorScreenState extends State<GeneratorScreen>
   @override
   void initState() {
     super.initState();
-    _loadInterstitialAd();
+    if (!_isVip) {
+      _loadInterstitialAd();
+    }
+
     _loadVipStatus();
     _checkVipStatus(); // 🔮 Check Supabase for VIP flag
 
 
     // Cache banners once (don’t recreate inside build)
-    _topBanner = BannerAd(
-      adUnitId: bannerAdUnitId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: const BannerAdListener(),
-    )..load();
+    if (!_isVip) {
+      _topBanner = BannerAd(
+        adUnitId: bannerAdUnitId,
+        size: AdSize.banner,
+        request: const AdRequest(),
+        listener: const BannerAdListener(),
+      )..load();
 
-    _bottomBanner = BannerAd(
-      adUnitId: bannerAdUnitId,
-      size: AdSize.banner,
-      request: const AdRequest(),
-      listener: const BannerAdListener(),
-    )..load();
+      _bottomBanner = BannerAd(
+        adUnitId: bannerAdUnitId,
+        size: AdSize.banner,
+        request: const AdRequest(),
+        listener: const BannerAdListener(),
+      )..load();
+    }
+
 
     _ballsAnim =
     AnimationController(vsync: this, duration: const Duration(seconds: 2))
@@ -180,6 +238,14 @@ class _GeneratorScreenState extends State<GeneratorScreen>
   }
 
   void _showAdThenGoToSpinWheel() {
+    if (_isVip) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const SpinWheelScreen()),
+      );
+      return;
+    }
+
     InterstitialAd.load(
       adUnitId: interstitialGenerateId, // use your actual interstitial ad ID
       request: const AdRequest(),
@@ -213,21 +279,108 @@ class _GeneratorScreenState extends State<GeneratorScreen>
     );
   }
 
+  void _showAdThenGoToCosmicDice() {
+    // ✅ VIP users skip ads entirely
+    if (_isVip) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CosmicDiceScreen()),
+      );
+      return;
+    }
+
+    // ✅ Hourly ad cap logic (same as generator)
+    final now = DateTime.now();
+    if (_adWindowStart == null ||
+        now.difference(_adWindowStart!).inHours >= 1) {
+      _adWindowStart = now;
+      _adsShownThisHour = 0;
+    }
+
+    if (_adsShownThisHour >= 3) {
+      debugPrint("🚫 Ad limit reached — skip ad");
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CosmicDiceScreen()),
+      );
+      return;
+    }
+
+    // ✅ Ad ready? Show it ➝ then navigate
+    if (_isAdReady && _interstitialAd != null) {
+      _interstitialAd!.fullScreenContentCallback =
+          FullScreenContentCallback(
+            onAdDismissedFullScreenContent: (ad) {
+              _adsShownThisHour++;
+              ad.dispose();
+              _isAdReady = false;
+              _loadInterstitialAd();
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CosmicDiceScreen()),
+              );
+            },
+            onAdFailedToShowFullScreenContent: (ad, error) {
+              _adsShownThisHour++;
+              ad.dispose();
+              _isAdReady = false;
+              _loadInterstitialAd();
+
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const CosmicDiceScreen()),
+              );
+            },
+          );
+
+      _interstitialAd!.show();
+    } else {
+      // ✅ Ad not ready — navigate & load next
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => const CosmicDiceScreen()),
+      );
+      _loadInterstitialAd();
+    }
+  }
+
+
 
   void _showInterstitialThenNavigate(
       List<int> mainNumbers, List<int> bonusNumbers) {
+    // ✅ Limit ads: 3 per hour
+    final now = DateTime.now();
+    if (_adWindowStart == null ||
+        now.difference(_adWindowStart!).inHours >= 1) {
+      _adWindowStart = now;
+      _adsShownThisHour = 0;
+    }
+
+    if (_adsShownThisHour >= 3) {
+      debugPrint("🚫 Ad limit reached — skip ad");
+      _navigateToResults(mainNumbers, bonusNumbers);
+      return;
+    }
+
     if (_isAdReady && _interstitialAd != null) {
       _interstitialAd!.fullScreenContentCallback = FullScreenContentCallback(
         onAdDismissedFullScreenContent: (ad) {
+          _adsShownThisHour++; // ✅ Count the ad
           ad.dispose();
           _isAdReady = false;
           _loadInterstitialAd();
+
+
           _navigateToResults(mainNumbers, bonusNumbers);
         },
         onAdFailedToShowFullScreenContent: (ad, error) {
+          _adsShownThisHour++; // ✅ Count the ad
           ad.dispose();
           _isAdReady = false;
           _loadInterstitialAd();
+
+
           _navigateToResults(mainNumbers, bonusNumbers);
         },
       );
@@ -273,6 +426,11 @@ class _GeneratorScreenState extends State<GeneratorScreen>
   }
 
   void _onGeneratePressed() {
+    if (_isVip) {
+      _generateNumbers();
+      return;
+    }
+
     if (_nameCtrl.text.trim().isEmpty || _dob == null) {
       _snack("Please enter your full name and date of birth first.");
       return;
@@ -855,9 +1013,11 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                 builder: (_) => const CosmicInsightsScreen())),
       ),
       _AnimatedCosmicButton(
-        label: "🎡 Spin the Cosmic Wheel",
-        onPressed: _showAdThenGoToSpinWheel,
+        label: "🎲 Cosmic Dice",
+        onPressed: _showAdThenGoToCosmicDice,
       ),
+
+
 
       _AnimatedCosmicButton(
         label: "💎 View Saved Draws",
@@ -1031,53 +1191,11 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                       width: double.infinity,
                       height: 52,
                       child: ElevatedButton(
-                        onPressed: () async {
-                          final supabase = Supabase.instance.client;
-                          final prefs = await SharedPreferences.getInstance();
-
-                          try {
-                            // get current Supabase user
-                            final user = supabase.auth.currentUser;
-                            if (user == null) {
-                              Navigator.pop(context);
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text("Please log in first.")),
-                              );
-                              return;
-                            }
-
-                            // update VIP flag in Supabase
-                            await supabase
-                                .from('profiles')
-                                .update({'is_vip': true})
-                                .eq('id', user.id);
-
-                            // save locally
-                            await prefs.setBool('is_vip', true);
-
-                            // refresh UI
-                            if (context.mounted) {
-                              Navigator.pop(context); // close popup
-                              setState(() => _isVip = true);
-
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    "🌟 VIP access unlocked! Welcome to the Cosmos Realm!",
-                                    style: TextStyle(color: Colors.white),
-                                  ),
-                                  backgroundColor: Colors.teal,
-                                  behavior: SnackBarBehavior.floating,
-                                ),
-                              );
-                            }
-                          } catch (e) {
-                            debugPrint("❌ VIP upgrade error: $e");
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: Text("Something went wrong: $e")),
-                            );
-                          }
+                        onPressed: () {
+                          Navigator.pop(context);
+                          Navigator.pushNamed(context, '/subscribe');
                         },
+
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF12D1C0),
                           foregroundColor: const Color(0xFF0A003D),

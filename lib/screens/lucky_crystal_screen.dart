@@ -166,46 +166,57 @@ class _LuckyCrystalScreenState extends State<LuckyCrystalScreen>
 
     try {
       final uri = Uri.parse('https://auranaguidance.co.uk/api/crystal');
-      final body = {
-        'prompt':
-        'Write a magical, inspiring message for the zodiac sign $_sign. Mention the lucky crystal $_crystal and birthstone $_birthstone, and how they help with cosmic alignment. Keep it elegant, spiritual, and positive.'
-      };
+      final request = http.Request('POST', uri)
+        ..headers['Content-Type'] = 'application/json'
+        ..body = jsonEncode({
+          'prompt':
+          'Write a magical, inspiring message for the zodiac sign $_sign. '
+              'Mention the lucky crystal $_crystal and birthstone $_birthstone. '
+              'Keep it short, poetic, and positive — 3 to 5 sentences.'
+        });
 
-      debugPrint('🔮 POST → $uri');
-      debugPrint('📦 Payload: ${jsonEncode(body)}');
+      debugPrint('🔮 STREAMING → $uri');
 
-      final res = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
+      final streamedResponse = await request.send();
 
-      debugPrint('✅ Status: ${res.statusCode}');
-      debugPrint('🪐 Response: ${res.body}');
-
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        _aiMessage = decoded['result'] ??
-            decoded['message'] ??
-            decoded['content'] ??
-            decoded['reply'] ??
-            decoded['text'] ??
-            '✨ The stars are still aligning your insight...';
-      } else {
-        _aiMessage =
-        'The cosmic connection flickered. Try again later (HTTP ${res.statusCode}).';
+      if (streamedResponse.statusCode != 200) {
+        throw Exception("HTTP ${streamedResponse.statusCode}");
       }
-    } catch (e) {
-      debugPrint('❌ Crystal API Error: $e');
-      _aiMessage = 'The cosmos is quiet right now. Try again soon.';
-    } finally {
-      _progressTimer?.cancel();
-      setState(() {
-        _progress = 100;
-        _loading = false;
+
+      final buffer = <int>[];
+
+      streamedResponse.stream.listen((chunk) {
+        buffer.addAll(chunk);
+        final text = utf8.decode(buffer, allowMalformed: true);
+
+        if (!mounted) return;
+        setState(() => _aiMessage = text.trim());
+      }, onDone: () {
+        if (!mounted) return;
+        _progressTimer?.cancel();
+        setState(() {
+          _progress = 100;
+          _loading = false;
+        });
+      }, onError: (_) {
+        _fallbackCrystal();
       });
+    } catch (_) {
+      _fallbackCrystal();
     }
   }
+
+  void _fallbackCrystal() {
+    if (!mounted) return;
+    _progressTimer?.cancel();
+    setState(() {
+      _aiMessage =
+      '✨ Crystal guidance is delayed. Trust your intuition for now.';
+      _progress = 100;
+      _loading = false;
+    });
+  }
+
 
   String _getBirthstone(int month) {
     const birthstones = {

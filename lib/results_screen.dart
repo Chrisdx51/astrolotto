@@ -64,27 +64,12 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
   late final AnimationController _fadeQuote;
   late final AnimationController _fadeHoroscope;
 
-  // ── NEW: AI + loading UI + live/breathing moon ─────────────────────────────
-  String? _aiMessage;
-  bool _aiLoading = true;
 
   // Breathing moon
   late final AnimationController _moonGlow; // 0..1 repeating
   late final Animation<double> _moonValue;
   String _liveMoonPhase = ""; // computed locally
 
-  // Loading phrase rotation
-  Timer? _phraseTimer;
-  int _phraseIndex = 0;
-  static const List<String> _loadingPhrases = [
-    "Drawing energy from the stars...",
-    "Aligning your cosmic fortune...",
-    "Consulting lunar wisdom...",
-    "Charging your lucky vibrations...",
-    "Reading today’s lunar field...",
-    "Synchronizing celestial insights...",
-    "Gathering cosmic energy... this can take up to 3 minutes."
-  ];
 
   @override
   void initState() {
@@ -95,8 +80,7 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
     // Live moon phase name (local calc)
     _liveMoonPhase = _computeMoonPhaseName(DateTime.now());
 
-    // AI (with daily cache)
-    _loadOrFetchAiMessage();
+
 
     // Original animations
     _bgAnim = AnimationController(vsync: this, duration: const Duration(seconds: 8))..repeat(reverse: true);
@@ -138,11 +122,6 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
     Future.delayed(const Duration(seconds: 1), () => _fadeQuote.forward());
     Future.delayed(const Duration(seconds: 2), () => _fadeHoroscope.forward());
 
-    // Rotate loading phrases every 10s while AI is loading
-    _phraseTimer = Timer.periodic(const Duration(seconds: 10), (_) {
-      if (!_aiLoading) return;
-      setState(() => _phraseIndex = (_phraseIndex + 1) % _loadingPhrases.length);
-    });
   }
 
   @override
@@ -156,7 +135,6 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
     _confettiController.dispose();
     _audioPlayer.stop();
     _audioPlayer.dispose();
-    _phraseTimer?.cancel();
     _moonGlow.dispose();
     for (var c in _ballAnims) {
       c.dispose();
@@ -269,65 +247,10 @@ Country: ${widget.country}
     Share.share(text, subject: 'My Astro Lucky Numbers 🌠');
   }
 
-  // ── NEW: daily cache key for AI (same message for same details within a day)
-  String _dailyAiKey() {
-    final now = DateTime.now().toUtc();
-    final date = "${now.year}-${now.month}-${now.day}";
-    return "ai_${widget.name}|${widget.zodiac}|${widget.country}|${widget.moonPhase}|$date";
-    // (uses the original provided moonPhase so cache matches your generator inputs)
-  }
+
 
   // ── NEW: fetch AI with caching + rotating phrases + progress bar
-  Future<void> _loadOrFetchAiMessage() async {
-    final prefs = await SharedPreferences.getInstance();
-    final key = _dailyAiKey();
-    final cached = prefs.getString(key);
 
-    if (cached != null) {
-      setState(() {
-        _aiMessage = cached;
-        _aiLoading = false;
-      });
-      return;
-    }
-
-    try {
-      setState(() => _aiLoading = true);
-
-      final uri = Uri.parse("https://auranaguidance.co.uk/api/lottofortune");
-      final livePhase = _liveMoonPhase.isNotEmpty ? _liveMoonPhase : widget.moonPhase;
-
-      final prompt = '''
-Create a concise, uplifting lotto fortune for ${widget.name}, a ${widget.zodiac} in ${widget.country}, under the ${livePhase} moon.
-Use mystical language but keep it under 40 words. Subtly acknowledge the moon phase’s influence on luck.
-Numbers drawn today: ${widget.mainNumbers.join(", ")}.
-''';
-
-      final res = await http.post(
-        uri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"prompt": prompt}),
-      );
-
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        // ✅ Your API returns "result" (singular)
-        final msg = (data['result'] as String?)?.trim();
-        setState(() => _aiMessage = (msg?.isNotEmpty == true)
-            ? msg
-            : (_quote ?? "✨ The stars whisper fortune your way, ${widget.name}."));
-        if (_aiMessage != null) {
-          await prefs.setString(key, _aiMessage!);
-        }
-      } else {
-        setState(() => _aiMessage = _quote ?? "✨ The universe hums with unseen luck — stay aligned.");
-      }
-    } catch (_) {
-      setState(() => _aiMessage = _quote ?? "🌙 The cosmic link is faint — try again later.");
-    } finally {
-      setState(() => _aiLoading = false);
-    }
-  }
 
   // ── NEW: local moon phase calculation (simple + fast)
   String _computeMoonPhaseName(DateTime date) {
@@ -591,7 +514,6 @@ Numbers drawn today: ${widget.mainNumbers.join(", ")}.
     );
   }
 
-  // 🔮 AI progress/message box
   Widget _magicBox() => Container(
     padding: const EdgeInsets.all(16),
     margin: const EdgeInsets.symmetric(horizontal: 20),
@@ -600,28 +522,38 @@ Numbers drawn today: ${widget.mainNumbers.join(", ")}.
       borderRadius: BorderRadius.circular(18),
       border: Border.all(color: _cSunshine.withOpacity(0.5), width: 1.2),
     ),
-    child: _aiLoading
-        ? Column(
+    child: Column(
       children: [
-        LinearProgressIndicator(
-          color: _cSunshine,
-          backgroundColor: Colors.white.withOpacity(0.2),
-          minHeight: 4,
+        Text(
+          _quote ?? "✨ The stars are aligning for you...",
+          textAlign: TextAlign.center,
+          style: GoogleFonts.orbitron(
+            color: Colors.white,
+            fontSize: 15,
+            fontWeight: FontWeight.w400,
+            height: 1.5,
+          ),
         ),
         const SizedBox(height: 12),
-        Text(
-          _loadingPhrases[_phraseIndex],
-          textAlign: TextAlign.center,
-          style: GoogleFonts.orbitron(color: Colors.white70, fontSize: 14, height: 1.5),
+        SizedBox(
+          height: 40,
+          child: ElevatedButton.icon(
+            onPressed: () => setState(() => _pickRandomQuote()),
+            icon: const Icon(Icons.auto_awesome, size: 18, color: Colors.white),
+            label: Text(
+              "New Affirmation",
+              style: GoogleFonts.orbitron(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w400),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: _cMagenta.withOpacity(0.35),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            ),
+          ),
         ),
       ],
-    )
-        : Text(
-      _aiMessage ?? _quote ?? "✨ The stars are aligning for you...",
-      textAlign: TextAlign.center,
-      style: GoogleFonts.orbitron(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w400, height: 1.5),
     ),
   );
+
 
   Widget _horoscopeBox() => Container(
     padding: const EdgeInsets.all(16),

@@ -6,6 +6,8 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mobile_ads/google_mobile_ads.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'generator_screen.dart'; // Adjust import path as needed
+import 'dart:io' show Platform;
+import 'package:firebase_messaging/firebase_messaging.dart';
 
 const _cTurquoise = Color(0xFF12D1C0);
 const _cMagenta = Color(0xFFFF4D9A);
@@ -102,6 +104,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+
   Future<void> _showConsentForm() async {
     final consentInfo = ConsentInformation.instance;
     final params = ConsentRequestParameters(tagForUnderAgeOfConsent: false);
@@ -137,6 +140,43 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     );
   }
 
+  Future<void> _subscribeToCountryTopics() async {
+    try {
+      final messaging = FirebaseMessaging.instance;
+      await messaging.subscribeToTopic('global');
+      debugPrint('🌍 Subscribed to global notifications only');
+    } catch (e) {
+      debugPrint('⚠️ Global topic subscribe failed: $e');
+    }
+  }
+
+  //Future<void> _subscribeToCountryTopics() async {
+    //try {
+      //final messaging = FirebaseMessaging.instance;
+
+      // Everyone gets a global channel
+      //await messaging.subscribeToTopic('global');
+
+      // Detect device locale to choose a lottery topic
+      //final loc = Platform.localeName.toLowerCase(); // e.g. "en_GB", "en_US"
+      //if (loc.contains('gb') || loc.contains('uk')) {
+        //await messaging.subscribeToTopic('lotto_uk');
+      //} else if (loc.contains('us')) {
+        //await messaging.subscribeToTopic('lotto_us');
+      //} else if (loc.contains('ie')) {
+        //await messaging.subscribeToTopic('lotto_ie');
+      //} else {
+        // Default to a Europe topic if unsure (covers EuroMillions)
+        //await messaging.subscribeToTopic('lotto_eu');
+      //}
+
+     // debugPrint('✅ Subscribed to notification topics for $loc');
+   // } catch (e) {
+      //debugPrint('⚠️ Topic subscribe failed: $e');
+   // }
+  //}
+
+
   Future<void> _submit() async {
     final email = _email.text.trim();
     final pass = _password.text.trim();
@@ -151,6 +191,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         await _client.auth.signInWithPassword(email: email, password: pass);
       } else {
         final res = await _client.auth.signUp(email: email, password: pass);
+        final user = res.user;
+        if (user != null) {
+          await _client.from('profiles').upsert({
+            'id': user.id,
+            'email': email,
+            'is_vip': false,
+          });
+        }
+
         if (res.session == null) {
           _snack('Account created! Check your email to confirm, then sign in.');
           setState(() => _isLoading = false);
@@ -177,9 +226,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
       }
 
       if (mounted) {
+        // ✅ Subscribe this device to the right FCM topics (UK/US/IE/EU + global)
+        await _subscribeToCountryTopics();
+
         await Future.delayed(const Duration(milliseconds: 300));
         Navigator.of(context).pushReplacement(_fadeTo(const GeneratorScreen()));
       }
+
     } on AuthException catch (e) {
       _snack(e.message);
     } catch (e) {

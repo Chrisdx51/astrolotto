@@ -1,30 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-class VipPaywallScreen extends StatefulWidget {
+class VipPaywallScreen extends StatelessWidget {
   const VipPaywallScreen({super.key});
 
-  @override
-  State<VipPaywallScreen> createState() => _VipPaywallScreenState();
-}
-
-class _VipPaywallScreenState extends State<VipPaywallScreen> {
-  bool _processing = false;
-
-  Future<void> _subscribe() async {
-    setState(() => _processing = true);
-
-    // TODO (later): replace with Google Play Billing / RevenueCat / your backend
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool('is_vip', true);
-
-    if (!mounted) return;
-    setState(() => _processing = false);
-
-    // back to Premium Realm
-    Navigator.pop(context); // close paywall
-    Navigator.pushReplacementNamed(context, '/premium');
+  void _openSubscribe(BuildContext context) {
+    Navigator.pushNamed(context, '/subscribe');
   }
 
   @override
@@ -81,15 +62,15 @@ class _VipPaywallScreenState extends State<VipPaywallScreen> {
           SizedBox(
             height: 52,
             child: ElevatedButton(
-              onPressed: _processing ? null : _subscribe,
+              onPressed: () => _openSubscribe(context),
               style: ElevatedButton.styleFrom(
                 backgroundColor: const Color(0xFF12D1C0),
                 foregroundColor: const Color(0xFF0A003D),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               ),
-              child: Text(
-                _processing ? "Activating…" : "Subscribe Now",
-                style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+              child: const Text(
+                "Subscribe Now",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
               ),
             ),
           ),

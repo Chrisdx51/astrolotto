@@ -49,18 +49,20 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
   late AnimationController _glowController;
   late ConfettiController _confetti;
 
+  StreamSubscription<List<int>>? _streamSub;
+
   @override
   void initState() {
     super.initState();
     _glowController =
     AnimationController(vsync: this, duration: const Duration(seconds: 2))
       ..repeat(reverse: true);
-    _confetti =
-        ConfettiController(duration: const Duration(seconds: 3));
+    _confetti = ConfettiController(duration: const Duration(seconds: 3));
   }
 
   @override
   void dispose() {
+    _streamSub?.cancel();
     _nameCtrl.dispose();
     _colorCtrl.dispose();
     _progressTimer?.cancel();
@@ -76,6 +78,7 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
       return;
     }
 
+    // Reset UI state
     setState(() {
       _loading = true;
       _progress = 0;
@@ -85,7 +88,10 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
       _cosmicMessage = '';
     });
 
+    // Progress tick
+    _progressTimer?.cancel();
     _progressTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (!mounted) return;
       setState(() {
         if (_progress < 90) {
           _progress += 0.4;
@@ -95,8 +101,10 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
       });
     });
 
+    // “Still working” message
     _messageTimer?.cancel();
     _messageTimer = Timer(const Duration(minutes: 1), () {
+      if (!mounted) return;
       if (_loading) {
         setState(() {
           _status =
@@ -105,43 +113,80 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
       }
     });
 
+    // 🔻 STREAMING REQUEST (raw text)
     try {
       final uri = Uri.parse('https://auranaguidance.co.uk/api/vip-generator');
       final body = {
         'prompt':
         'VIP cosmic lotto reading for ${_nameCtrl.text} with zodiac $_zodiac, favorite color ${_colorCtrl.text}, mood $_mood for $_lottoType.'
       };
-      final res = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
 
-      _progressTimer?.cancel();
-      setState(() => _progress = 100);
+      final request = http.Request('POST', uri)
+        ..headers['Content-Type'] = 'application/json'
+        ..body = jsonEncode(body);
 
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        final msg = decoded['message'] ?? '';
-        final nums = RegExp(r'\d+')
-            .allMatches(msg)
-            .map((m) => int.parse(m.group(0)!))
-            .toList();
+      final streamedResponse = await request.send();
 
-        final (main, star) = _normalizeNumbers(nums);
-        setState(() {
-          _mainBalls = main;
-          _starBall = star;
-          _cosmicMessage = _buildCosmicMessage();
-          _status = '✨ Your VIP numbers are ready!';
-          _confetti.play();
-        });
-      } else {
-        _fallback();
+      if (streamedResponse.statusCode != 200) {
+        throw Exception('Bad response: ${streamedResponse.statusCode}');
       }
+
+      // Bump progress to done when server accepts request
+      _progressTimer?.cancel();
+      if (mounted) setState(() => _progress = 100);
+
+      // Accumulate bytes -> decode -> parse numbers continuously
+      final buffer = <int>[];
+      _streamSub?.cancel();
+      _streamSub = streamedResponse.stream.listen(
+            (chunk) {
+          buffer.addAll(chunk);
+
+          // Decode so far
+          final text = utf8.decode(buffer, allowMalformed: true);
+
+          // Extract any numbers we have so far
+          final nums = RegExp(r'\d+')
+              .allMatches(text)
+              .map((m) => int.parse(m.group(0)!))
+              .toList();
+
+          // If we have some numbers, normalize + show early
+          if (nums.length >= 3 && mounted) {
+            final result = _normalizeNumbers(nums);
+            final main = result.$1;
+            final star = result.$2;
+            setState(() {
+              _mainBalls = main;
+              _starBall = (star > 0) ? star : null;
+              _status = '✨ Aligning your VIP numbers...';
+            });
+          }
+        },
+        onDone: () {
+          if (!mounted) return;
+          // If nothing came through, fallback
+          if (_mainBalls.isEmpty) {
+            _fallback();
+          } else {
+            setState(() {
+              _loading = false;
+              _status = '✨ Your VIP numbers are ready!';
+              _cosmicMessage = _buildCosmicMessage();
+              _confetti.play();
+            });
+          }
+        },
+        onError: (_) {
+          if (!mounted) return;
+          _fallback();
+        },
+        cancelOnError: true,
+      );
     } catch (_) {
       _fallback();
     } finally {
+      // Ensure loader hides even if onDone didn’t fire
       Future.delayed(const Duration(seconds: 1), () {
         if (mounted) setState(() => _loading = false);
       });
@@ -223,12 +268,14 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
     while (main.length < maxMainNumbers) {
       main.add(rand.nextInt(maxBallRange) + 1);
     }
+    if (!mounted) return;
     setState(() {
       _mainBalls = main.toList()..sort();
       _starBall = maxStarBall > 0 ? rand.nextInt(maxStarBall) + 1 : null;
       _cosmicMessage =
       'Connection interrupted — fallback numbers generated through cosmic intuition.';
       _status = '✨ Intuitive Mode Active';
+      _loading = false;
     });
   }
 
@@ -431,8 +478,7 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
         const SizedBox(height: 16),
         _dropdown('Current Mood', _moods, _mood, (v) => _mood = v ?? 'Optimistic'),
         const SizedBox(height: 16),
-        _dropdown('Lotto Type', _lottoTypes, _lottoType,
-                (v) => _lottoType = v ?? 'Irish Lotto'),
+        _dropdown('Lotto Type', _lottoTypes, _lottoType, (v) => _lottoType = v ?? 'Irish Lotto'),
         const SizedBox(height: 20),
         SizedBox(
           height: 56,
@@ -494,8 +540,7 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
     );
   }
 
-  Widget _dropdown(String label, List<String> items, String value,
-      Function(String?) onChanged) {
+  Widget _dropdown(String label, List<String> items, String value, Function(String?) onChanged) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -626,10 +671,10 @@ class _VipGeneratorScreenState extends State<VipGeneratorScreen>
         alignment: Alignment.center,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          gradient: RadialGradient(
+          gradient: const RadialGradient(
             colors: [
-              Colors.tealAccent.withOpacity(0.2),
-              const Color(0xFF0F1430),
+              Color(0x3322FFD6), // tealAccent with opacity
+              Color(0xFF0F1430),
             ],
           ),
           border: Border.all(

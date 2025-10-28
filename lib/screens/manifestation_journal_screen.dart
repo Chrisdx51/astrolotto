@@ -98,78 +98,78 @@ class _ManifestationJournalScreenState
       _working = true;
       _statusMessage = _messages[0];
       _progress = 0;
+      _aiResponse = '';
     });
 
     _rotateMessages();
 
+    _progressTimer?.cancel();
     _progressTimer = Timer.periodic(const Duration(milliseconds: 250), (_) {
+      if (!mounted) return;
       setState(() {
-        if (_progress < 98) {
-          _progress += 0.6;
-        } else if (_progress < 100) {
-          _progress += 0.1;
+        if (_progress < 97) {
+          _progress += 0.5;
         }
       });
     });
 
-    try {
-      final uri = Uri.parse('https://auranaguidance.co.uk/api/manifest');
-      final body = {
+    final uri = Uri.parse('https://auranaguidance.co.uk/api/manifest');
+    final request = http.Request('POST', uri)
+      ..headers['Content-Type'] = 'application/json'
+      ..body = jsonEncode({
         'prompt':
         'Create a concise, mystical, uplifting manifestation affirmation inspired by: "$intention". '
-            'Craft it with a cosmic, empowering tone, as if channeled from the stars.'
-      };
+            'Cosmic. Empowering. Positive. One or two sentences maximum. No disclaimers.'
+      });
 
-      debugPrint('🪐 POST → $uri');
-      debugPrint('📦 Payload: ${jsonEncode(body)}');
+    try {
+      final streamedResponse = await request.send();
 
-      final res = await http.post(
-        uri,
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode(body),
-      );
-
-      debugPrint('✅ Status: ${res.statusCode}');
-      debugPrint('🪄 Response: ${res.body}');
-
-      _progressTimer?.cancel();
-      setState(() => _progress = 100);
-
-      if (res.statusCode == 200) {
-        final decoded = jsonDecode(res.body);
-        final result = decoded['result'] ??
-            decoded['message'] ??
-            decoded['content'] ??
-            decoded['reply'] ??
-            decoded['text'] ??
-            'The stars are aligning your intention — try again soon.';
-
-        final prefs = await SharedPreferences.getInstance();
-        setState(() {
-          _aiResponse = result;
-          _working = false;
-          _dailyManifestations++;
-          if (_dailyManifestations == 2) {
-            _aiResponse = '';
-          }
-        });
-        await prefs.setInt('daily_manifestations', _dailyManifestations);
-        await prefs.setString('last_affirmation', _aiResponse);
-        await prefs.setString('last_manifestation_date', DateTime.now().toIso8601String().split('T')[0]);
-        _playSuccessTone();
-      } else {
-        _toast('Cosmic connection flickered (HTTP ${res.statusCode}). Try again.');
-        setState(() => _working = false);
+      if (streamedResponse.statusCode != 200) {
+        throw Exception('HTTP ${streamedResponse.statusCode}');
       }
-    } catch (e) {
-      debugPrint('❌ Manifestation Error: $e');
-      _toast('The cosmos is quiet. Please try again soon.');
-      setState(() => _working = false);
-    } finally {
+
       _progressTimer?.cancel();
-      _messageTimer?.cancel();
+      if (mounted) setState(() => _progress = 100);
+
+      final buffer = <int>[];
+      streamedResponse.stream.listen((chunk) {
+        buffer.addAll(chunk);
+        final text = utf8.decode(buffer, allowMalformed: true);
+
+        if (!mounted) return;
+        setState(() => _aiResponse = text.trim());
+      }, onDone: () async {
+        if (!mounted) return;
+        setState(() => _working = false);
+        _statusMessage = "✨ Manifestation complete";
+
+        if (_aiResponse.isNotEmpty) {
+          _playSuccessTone();
+          final prefs = await SharedPreferences.getInstance();
+          _dailyManifestations++;
+          await prefs.setInt('daily_manifestations', _dailyManifestations);
+          await prefs.setString('last_affirmation', _aiResponse);
+          await prefs.setString('last_manifestation_date',
+              DateTime.now().toIso8601String().split('T')[0]);
+        }
+      }, onError: (_) {
+        _fallbackManifest();
+      });
+    } catch (_) {
+      _fallbackManifest();
     }
   }
+
+  void _fallbackManifest() {
+    if (!mounted) return;
+    setState(() {
+      _working = false;
+      _aiResponse =
+      'The cosmos whispered softly... please try again soon.';
+    });
+  }
+
 
   void _rotateMessages() {
     _messageTimer?.cancel();

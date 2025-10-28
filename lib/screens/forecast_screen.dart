@@ -105,40 +105,49 @@ class _ForecastScreenState extends State<ForecastScreen>
     print('🧠 [CosmosAI] Prompt: $promptText');
 
     try {
-      final response = await http.post(
-        uri,
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        },
-        body: jsonEncode({"prompt": promptText}),
-      );
+      final request = http.Request('POST', uri)
+        ..headers['Content-Type'] = 'application/json'
+        ..body = jsonEncode({"prompt": promptText});
 
-      print('🌠 [CosmosAI] Status: ${response.statusCode}');
-      print('📦 [CosmosAI] Raw body: ${response.body}');
+      print('🔭 [CosmosAI] STREAMING → $uri');
 
-      if (response.statusCode == 200) {
-        final decoded = jsonDecode(response.body);
-        final resultText = decoded['result'] ?? decoded.toString();
+      final streamedResponse = await request.send();
+      if (streamedResponse.statusCode != 200) {
+        throw Exception("HTTP ${streamedResponse.statusCode}");
+      }
 
+      final buffer = <int>[];
+
+      streamedResponse.stream.listen((chunk) {
+        buffer.addAll(chunk);
+        final text = utf8.decode(buffer, allowMalformed: true);
+
+        if (!mounted) return;
         setState(() {
-          _aiResult = resultText;
-          _loading = false;
+          _aiResult = text.trim();
         });
 
-        print('✅ [CosmosAI] Forecast received and displayed.');
-      } else {
-        throw Exception('Unexpected response ${response.statusCode}');
-      }
-    } catch (e) {
-      print('❌ [CosmosAI] Error: $e');
-      setState(() {
-        _aiResult =
-        "💫 The Cosmos AI connection seems to be momentarily lost.\n\nYet the $_moonPhase moon still guides your intuition — trust what you feel.";
-        _loading = false;
+      }, onDone: () {
+        if (!mounted) return;
+        setState(() => _loading = false);
+        print('✅ [CosmosAI] Streaming response finished.');
+      }, onError: (e) {
+        _fallbackForecast();
       });
+    } catch (_) {
+      _fallbackForecast();
     }
   }
+
+  void _fallbackForecast() {
+    if (!mounted) return;
+    setState(() {
+      _aiResult =
+      "💫 The Cosmos AI connection seems to be momentarily lost.\n\nYet the $_moonPhase moon still guides your intuition — trust what you feel.";
+      _loading = false;
+    });
+  }
+
 
   String _getZodiac(int month, int day) {
     if ((month == 3 && day >= 21) || (month == 4 && day <= 19)) return 'Aries ♈';

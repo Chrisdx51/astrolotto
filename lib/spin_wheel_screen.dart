@@ -257,35 +257,59 @@ Spin Wheel fortune for $name, a $zodiac in $country, under $moon.
 Tone: magical, encouraging, under 40 words. Mention that deeper insights unlock with VIP (subtle).
 ''';
 
-      final res = await http.post(
-        uri,
-        headers: {"Content-Type": "application/json"},
-        body: jsonEncode({"prompt": prompt}),
-      );
+      // Build a streaming request
+      final request = http.Request('POST', uri)
+        ..headers["Content-Type"] = "application/json"
+        ..body = jsonEncode({"prompt": prompt});
 
-      if (res.statusCode == 200) {
-        final data = jsonDecode(res.body);
-        final msg = (data['result'] as String?)?.trim();
-        if (msg != null && msg.isNotEmpty) {
-          setState(() {
-            _aiMessage = msg;
-            _fortuneMessage = msg;
-          });
-        } else {
-          setState(() => _fortuneMessage = _generateFallbackFortune());
+      final streamedResponse = await request.send();
+
+      if (streamedResponse.statusCode != 200) {
+        throw Exception("HTTP ${streamedResponse.statusCode}");
+      }
+
+      final buffer = <int>[];
+      bool showedFirstChunk = false;
+
+      // Read chunks as they arrive
+      await for (final chunk in streamedResponse.stream) {
+        buffer.addAll(chunk);
+        final text = utf8.decode(buffer, allowMalformed: true).trim();
+
+        if (text.isEmpty) continue;
+
+        // As soon as we get the first chunk, reveal the fortune box
+        if (!showedFirstChunk) {
+          showedFirstChunk = true;
+          _aiLoading = false;            // stop showing loading phrase
+          _phraseTimer?.cancel();        // stop rotating messages
         }
-      } else {
-        setState(() => _fortuneMessage = _generateFallbackFortune());
+
+        if (!mounted) break;
+        setState(() {
+          _aiMessage = text;
+          _fortuneMessage = text;        // update live while streaming
+        });
+      }
+
+      // If nothing arrived, fallback
+      if (!showedFirstChunk) {
+        setState(() {
+          _fortuneMessage = _generateFallbackFortune();
+        });
       }
     } catch (_) {
-      setState(() => _fortuneMessage = _generateFallbackFortune());
+      setState(() {
+        _fortuneMessage = _generateFallbackFortune();
+      });
     } finally {
       _aiLoading = false;
       _isSpinning = false;
       _phraseTimer?.cancel();
-      setState(() {});
+      if (mounted) setState(() {});
     }
   }
+
 
   @override
   void dispose() {

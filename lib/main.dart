@@ -9,6 +9,12 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+// ✅ New for Firebase Notifications
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+
 
 // 🪐 Core Screens
 import 'saved_draws_screen.dart';
@@ -37,9 +43,88 @@ const String bannerTopId = 'ca-app-pub-5354629198133392/7753523660';
 const String bannerBottomId = 'ca-app-pub-5354629198133392/6576173364';
 const String interstitialGenerateId = 'ca-app-pub-5354629198133392/9358636415';
 const String bannerAdUnitId = bannerBottomId;
+// ✅ Local notification plugin
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+FlutterLocalNotificationsPlugin();
+
+@pragma('vm:entry-point')
+Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
+  debugPrint("📩 Background Notification: ${message.notification?.title}");
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  // ✅ Add this for timezone support
+
+// ✅ Initialize Firebase
+  await Firebase.initializeApp();
+  FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+
+  // When a notification is tapped and the app opens:
+  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+    // Optional: deep-link to a screen if present
+    final route = message.data['route'];
+    if (route != null) {
+      // Example: go to Generator screen if route == '/generator'
+      // NavigatorKey pattern recommended, but if you don't have it:
+      // Navigator.of(context).pushNamed(route);  // add using your navigator pattern
+    }
+  });
+
+// ✅ Setup local notifications with heads-up channel
+  const AndroidInitializationSettings androidSettings =
+  AndroidInitializationSettings('@mipmap/ic_launcher');
+
+  const AndroidNotificationChannel astroChannel = AndroidNotificationChannel(
+    'astro_lotto_channel',     // MUST MATCH Firebase key 🔥
+    'Astro Lotto Alerts',
+    description: 'Cosmic notifications and reminders',
+    importance: Importance.max, // 🔥 Heads-up (popup)
+    playSound: true,
+    enableLights: true,
+    enableVibration: true,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(
+    const InitializationSettings(android: androidSettings),
+  );
+
+// ✅ Register channel on first launch
+  final androidPlugin =
+  flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+      AndroidFlutterLocalNotificationsPlugin>();
+
+  await androidPlugin?.createNotificationChannel(astroChannel);
+
+
+// ✅ Request permission (Android 13+)
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+  await messaging.requestPermission(alert: true, sound: true, badge: true);
+  String? token = await messaging.getToken();
+  debugPrint("📌 FCM Token: $token");
+// ✅ Schedule weekly reminders (first basic test)
+
+
+// ✅ Listen for notifications when app is open
+  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    final notification = message.notification;
+    if (notification != null) {
+      flutterLocalNotificationsPlugin.show(
+        notification.hashCode,
+        notification.title,
+        notification.body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            'astro_lotto_channel',
+            'Astro Lotto Alerts',
+            importance: Importance.max,
+            priority: Priority.high,
+            playSound: true,
+          ),
+        ),
+      );
+    }
+  });
 
   // 1️⃣ Load environment
   try {
@@ -62,13 +147,40 @@ Future<void> main() async {
   // 3️⃣ Initialize Google Ads
   await MobileAds.instance.initialize();
 
-  // 4️⃣ Run app
-  runApp(const AstroLottoLuckApp());
+  final prefs = await SharedPreferences.getInstance();
+  final savedVip = prefs.getBool('is_vip') ?? false;
+
+  runApp(AstroLottoLuckApp(initialVip: savedVip));
+
 }
+
+Future<void> refreshVipStatus() async {
+  final supabase = Supabase.instance.client;
+  final user = supabase.auth.currentUser;
+  if (user == null) return;
+
+  final res = await supabase
+      .from('profiles')
+      .select('is_vip')
+      .eq('id', user.id)
+      .maybeSingle();
+
+  final isVip = res?['is_vip'] == true;
+
+  final prefs = await SharedPreferences.getInstance();
+  await prefs.setBool('is_vip', isVip);
+
+  debugPrint("✅ VIP refreshed: $isVip");
+}
+
 
 /// 🌙 Main App Shell
 class AstroLottoLuckApp extends StatelessWidget {
-  const AstroLottoLuckApp({super.key});
+  final bool initialVip;
+  const AstroLottoLuckApp({super.key, required this.initialVip});
+
+
+
 
   @override
   Widget build(BuildContext context) {
@@ -106,7 +218,6 @@ class AstroLottoLuckApp extends StatelessWidget {
           borderRadius: BorderRadius.all(Radius.circular(18)),
         ),
       ),
-
       textTheme: GoogleFonts.poppinsTextTheme(
         const TextTheme(
           bodyMedium: TextStyle(fontSize: 13, height: 1.35, color: Colors.white),
@@ -137,7 +248,6 @@ class AstroLottoLuckApp extends StatelessWidget {
         '/saved': (_) => const SavedDrawsScreen(),
         '/subscribe': (context) => const SubscribeScreen(),
         '/about': (_) => const AboutScreen(),
-
 
         // 🌌 Premium Realm Pages
         '/premium': (_) => const PremiumRealmScreen(),
@@ -179,39 +289,55 @@ class _VersionCheckerState extends State<VersionChecker> {
   @override
   void initState() {
     super.initState();
-    _checkVersion();
-    safeCheckVipStatus(); // 👈 safer version with retry and offline handling
 
-  }
+    // ✅ Only check version on startup. Do NOT restore subscriptions here.
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      await _checkVersion();
+// 🧿 After version check success → silently restore VIP
+      try {
+        final iap = InAppPurchase.instance;
+        final supabase = Supabase.instance.client;
+        final user = supabase.auth.currentUser;
 
-  // ✅ Offline or fallback helper
-  Future<void> safeCheckVipStatus() async {
-    try {
-      await checkVipStatus();
-    } catch (e) {
-      debugPrint("⚠️ Could not verify subscription: $e");
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text(
-              "⚠️ Unable to verify subscription — retrying soon.",
-              style: TextStyle(color: Colors.white),
-            ),
-            backgroundColor: Colors.orange,
-            duration: Duration(seconds: 4),
-          ),
-        );
+        if (user != null && await iap.isAvailable()) {
+          bool hasVip = false;
+
+          late final StreamSubscription<List<PurchaseDetails>> sub;
+          sub = iap.purchaseStream.listen((purchases) async {
+
+            for (final p in purchases) {
+              if (p.productID.startsWith('vip_') &&
+                  p.status == PurchaseStatus.purchased) {
+                hasVip = true;
+              }
+            }
+
+            await supabase
+                .from('profiles')
+                .update({'is_vip': hasVip})
+                .eq('id', user.id);
+
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setBool('is_vip', hasVip);
+
+            debugPrint("VIP synced: $hasVip");
+            await sub.cancel();
+          });
+
+          await iap.restorePurchases();
+        }
+      } catch (e) {
+        debugPrint("VIP sync error: $e");
       }
 
-      // Retry in 30 seconds automatically
-      Future.delayed(const Duration(seconds: 30), () {
-        if (mounted) {
-          safeCheckVipStatus(); // 🔁 retry silently
-        }
-      });
-    }
+      if (mounted) {
+        setState(() => _checking = false);
+      }
+    });
   }
 
+  /// ⚠️ Keep this method around if you want to call it AFTER login in the future.
+  /// Not called on startup anymore.
   Future<void> checkVipStatus() async {
     final iap = InAppPurchase.instance;
     final supabase = Supabase.instance.client;
@@ -226,37 +352,28 @@ class _VersionCheckerState extends State<VersionChecker> {
 
     bool hasVip = false;
 
-    // ✅ Declare subscription variable first (so we can cancel later)
     late final StreamSubscription<List<PurchaseDetails>> subscription;
-
     subscription = iap.purchaseStream.listen((purchases) async {
       for (final purchase in purchases) {
-        if (purchase.productID == 'vip-weekly' ||
-            purchase.productID == 'vip-monthly' ||
-            purchase.productID == 'vip-yearly') {
+        // NOTE: This was your older check using base-plan IDs.
+        // When we wire this back in after login, we will switch this to
+        // check `purchase.productID == 'cosmic_premium'`.
+        if (purchase.productID == 'cosmic_premium') {
           hasVip = true;
         }
       }
 
-      // ✅ Update Supabase
       await supabase
           .from('profiles')
           .update({'is_vip': hasVip})
           .eq('id', user.id);
 
       debugPrint('✅ VIP status synced: $hasVip');
-
-      // ✅ Safely cancel listener after one round
       await subscription.cancel();
     });
 
-    // 🔄 This triggers Google to resend existing purchases
     await iap.restorePurchases();
   }
-
-
-
-
 
   Future<void> _checkVersion() async {
     final supabase = Supabase.instance.client;
