@@ -53,55 +53,34 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  WidgetsFlutterBinding.ensureInitialized(); // ✅ Crucial for iOS
 
-  debugPrint("🚀 App starting...");
-
-  // 1️⃣ Load .env
   try {
-    await dotenv.load(fileName: ".env");
-    debugPrint("✅ .env loaded (${dotenv.env.length} keys)");
+    // ✅ Only initialize Firebase on supported platforms
+    if (Platform.isIOS || Platform.isAndroid) {
+      await Firebase.initializeApp();
+    }
   } catch (e) {
-    debugPrint("❌ .env load failed: $e");
+    debugPrint("Firebase init failed: $e");
   }
 
-  // 2️⃣ Initialize Firebase
-  try {
-    await Firebase.initializeApp();
-    debugPrint("✅ Firebase initialized");
-  } catch (e) {
-    debugPrint("❌ Firebase init failed: $e");
-  }
+  // ✅ Load .env variables safely
+  await dotenv.load(fileName: ".env");
 
-  // 3️⃣ Initialize Supabase
-  try {
-    await Supabase.initialize(
-      url: supabaseUrl,
-      anonKey: supabaseAnonKey,
-    );
-    debugPrint("✅ Supabase initialized");
-  } catch (e) {
-    debugPrint("❌ Supabase init failed: $e");
-  }
+  // ✅ Initialize Supabase
+  await Supabase.initialize(
+    url: dotenv.env['SUPABASE_URL'] ?? '',
+    anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
+  );
 
-  // 4️⃣ Initialize Google Ads
-  try {
-    await MobileAds.instance.initialize();
-    debugPrint("✅ Google Ads initialized");
-  } catch (e) {
-    debugPrint("❌ AdMob init failed: $e");
-  }
+  // ✅ Initialize AdMob
+  await MobileAds.instance.initialize();
 
-  // 5️⃣ SharedPreferences + run app
-  try {
-    final prefs = await SharedPreferences.getInstance();
-    final savedVip = prefs.getBool('is_vip') ?? false;
-    debugPrint("🏁 Running app (VIP=$savedVip)");
-    runApp(AstroLottoLuckApp(initialVip: savedVip));
-  } catch (e) {
-    debugPrint("❌ RunApp failed: $e");
-  }
+  // ✅ Launch the correct app class
+  runApp(const AstroLottoLuckApp(initialVip: false));
 }
+
+
 
 
 Future<void> refreshVipStatus() async {
