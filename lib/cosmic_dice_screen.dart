@@ -214,7 +214,7 @@ class _CosmicDiceScreenState extends State<CosmicDiceScreen> with TickerProvider
   Future<void> _rollDice() async {
     if (_rolling) return;
     _maybeResetWindow();
-    if (_rollsThisHour >= 8) {
+    if (_rollsThisHour >= 3) {
       _snack("You’ve reached 3 rolls. Try again in an hour ✨");
       return;
     }
@@ -607,8 +607,12 @@ class _ExplanationBox extends StatelessWidget {
         border: Border.all(color: Colors.white30),
       ),
       child: Text(
-        "The Cosmic Dice journey into the cosmos to channel a daily reading tailored for you. "
-            "${isVip ? 'As a VIP, you receive an in-depth, premium affirmation.' : 'Unlock deeper, richer affirmations with a VIP subscription.'}",
+        "The Cosmic Dice connect your intention with universal flow.\n\n"
+            "Each roll channels your current energy into a single number — a reflection of where opportunity forms for you right now.\n\n"
+            "${isVip
+            ? 'As a VIP, your affirmation unlocks deeper meaning and specific daily direction.'
+            : 'Upgrade to VIP for longer, more powerful affirmations tuned to your path.'}"
+        ,
         textAlign: TextAlign.center,
         style: GoogleFonts.merriweather(
           color: Colors.white,

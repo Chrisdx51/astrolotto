@@ -1177,10 +1177,7 @@ class _GeneratorScreenState extends State<GeneratorScreen>
                     const _VipFeature(
                         icon: Icons.self_improvement,
                         text: "Ad-Free Experience — peaceful focus during every reading."),
-                    const _VipFeature(
-                        icon: Icons.nightlight_round,
-                        text: "Dream → Numbers, Manifestation Journal & Meditation Rooms."),
-                    const _VipFeature(
+                     const _VipFeature(
                         icon: Icons.wb_sunny,
                         text: "Daily Cosmic Forecast & Lucky Crystal insights."),
                     const _VipFeature(

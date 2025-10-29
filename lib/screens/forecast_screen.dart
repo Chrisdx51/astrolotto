@@ -48,7 +48,8 @@ class _ForecastScreenState extends State<ForecastScreen>
     int index = 0;
     _messageTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
       setState(() {
-        _statusText = _spiritualMessages[index % _spiritualMessages.length];
+        _statusText =
+        _spiritualMessages[index % _spiritualMessages.length];
         index++;
       });
     });
@@ -81,35 +82,27 @@ class _ForecastScreenState extends State<ForecastScreen>
     final day = _birthDate?.day ?? now.day;
     _zodiacSign = _getZodiac(month, day);
 
-    // 🌠 Step 3: Generate 3 random lucky days within the next 7 days
     final random = Random();
-    final Set<int> chosenOffsets = {}; // ensures no duplicate days
+    final Set<int> chosenOffsets = {};
     while (chosenOffsets.length < 3) {
-      chosenOffsets.add(random.nextInt(7) + 1); // random day 1–7 ahead
+      chosenOffsets.add(random.nextInt(7) + 1);
     }
 
     _luckyDays = chosenOffsets.map((offset) {
       final date = now.add(Duration(days: offset));
       return DateFormat('EEEE, MMM d').format(date);
     }).toList()
-      ..sort((a, b) => DateFormat('EEEE, MMM d').parse(a)
-          .compareTo(DateFormat('EEEE, MMM d').parse(b)));
-
+      ..sort();
 
     final uri = Uri.parse('https://auranaguidance.co.uk/api/forecast');
     final promptText =
         "Create a detailed but calming daily cosmic forecast for zodiac $_zodiacSign under the $_moonPhase moon. "
         "Focus on emotional balance, luck, and spiritual alignment in 2 short paragraphs. End with a guiding affirmation.";
 
-    print('🔭 [CosmosAI] Sending request to: $uri');
-    print('🧠 [CosmosAI] Prompt: $promptText');
-
     try {
       final request = http.Request('POST', uri)
         ..headers['Content-Type'] = 'application/json'
         ..body = jsonEncode({"prompt": promptText});
-
-      print('🔭 [CosmosAI] STREAMING → $uri');
 
       final streamedResponse = await request.send();
       if (streamedResponse.statusCode != 200) {
@@ -123,17 +116,11 @@ class _ForecastScreenState extends State<ForecastScreen>
         final text = utf8.decode(buffer, allowMalformed: true);
 
         if (!mounted) return;
-        setState(() {
-          _aiResult = text.trim();
-        });
-
+        setState(() => _aiResult = text.trim());
       }, onDone: () {
         if (!mounted) return;
         setState(() => _loading = false);
-        print('✅ [CosmosAI] Streaming response finished.');
-      }, onError: (e) {
-        _fallbackForecast();
-      });
+      }, onError: (_) => _fallbackForecast());
     } catch (_) {
       _fallbackForecast();
     }
@@ -147,7 +134,6 @@ class _ForecastScreenState extends State<ForecastScreen>
       _loading = false;
     });
   }
-
 
   String _getZodiac(int month, int day) {
     if ((month == 3 && day >= 21) || (month == 4 && day <= 19)) return 'Aries ♈';
@@ -209,13 +195,6 @@ class _ForecastScreenState extends State<ForecastScreen>
                     Colors.tealAccent,
                   ],
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.tealAccent.withOpacity(0.4),
-                    blurRadius: 25,
-                    spreadRadius: 3,
-                  )
-                ],
               ),
             ),
           ),
@@ -245,40 +224,43 @@ class _ForecastScreenState extends State<ForecastScreen>
           child: Image.asset(
             'assets/images/logolot.png',
             height: 90,
-            fit: BoxFit.contain,
           ),
         ),
-        const SizedBox(height: 15),
+        const SizedBox(height: 20),
+
+        // ✅ New Explanation Box
         Container(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: const Color(0xFF151A2D),
-            borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white12),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: Colors.white24, width: 1),
           ),
           child: Text(
-            "Welcome to your Cosmic Forecast 🌌\n\n"
-                "Here, the Cosmos AI reads the stars to reveal your energy flow for today. "
-                "Your moon phase and zodiac alignment guide your message — helping you stay aligned with universal rhythm.",
+            "🔭 Your Cosmic Forecast reveals:\n\n"
+                "• Emotional energy & balance 🌙\n"
+                "• Levels of universal luck 🍀\n"
+                "• Spiritually aligned action days ✨\n\n"
+                "Guidance shifts each day — return daily "
+                "to follow your path through the stars 🌌",
             textAlign: TextAlign.center,
             style: GoogleFonts.poppins(
-              color: Colors.white70,
               fontSize: 15,
-              height: 1.6,
+              height: 1.55,
+              color: Colors.white70,
             ),
           ),
         ),
-        const SizedBox(height: 25),
+
+        const SizedBox(height: 30),
+
+        // ✅ Zodiac
         Center(
           child: Column(
             children: [
-              Text(
-                "Zodiac Cycle",
-                style: GoogleFonts.orbitron(
-                  color: Colors.amberAccent,
-                  fontSize: 14,
-                ),
-              ),
+              Text("Zodiac Cycle",
+                  style: GoogleFonts.orbitron(
+                      fontSize: 14, color: Colors.amberAccent)),
               const SizedBox(height: 6),
               Text(
                 _birthDate != null ? _zodiacSign : "$currentZodiac (This Month)",
@@ -291,17 +273,16 @@ class _ForecastScreenState extends State<ForecastScreen>
             ],
           ),
         ),
+
         const SizedBox(height: 30),
+
+        // ✅ Moon Phase
         Center(
           child: Column(
             children: [
-              Text(
-                "Current Moon Phase",
-                style: GoogleFonts.orbitron(
-                  color: Colors.amberAccent,
-                  fontSize: 14,
-                ),
-              ),
+              Text("Current Moon Phase",
+                  style: GoogleFonts.orbitron(
+                      color: Colors.amberAccent, fontSize: 14)),
               const SizedBox(height: 6),
               Text(
                 _moonPhase,
@@ -314,7 +295,9 @@ class _ForecastScreenState extends State<ForecastScreen>
             ],
           ),
         ),
+
         const SizedBox(height: 30),
+
         Text(
           "✨ Lucky Cosmic Days ✨",
           textAlign: TextAlign.center,
@@ -328,31 +311,28 @@ class _ForecastScreenState extends State<ForecastScreen>
         ..._luckyDays.map(
               (day) => Card(
             color: const Color(0xFF10162C),
-            margin: const EdgeInsets.symmetric(vertical: 6),
             child: ListTile(
-              title: Text(
-                day,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              title: Text(day,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold)),
               subtitle: const Text(
-                "High alignment energy detected ✨",
+                "High cosmic alignment detected ✨",
                 style: TextStyle(color: Colors.white70),
               ),
-              trailing: const Icon(Icons.auto_awesome, color: Colors.amberAccent),
+              trailing: const Icon(Icons.auto_awesome,
+                  color: Colors.amberAccent),
             ),
           ),
         ),
+
         const SizedBox(height: 30),
+
         Container(
           padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: const Color(0xFF151A2D),
             borderRadius: BorderRadius.circular(20),
-            border: Border.all(color: Colors.white12),
           ),
           child: Text(
             _aiResult,

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:confetti/confetti.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PremiumRealmScreen extends StatefulWidget {
   const PremiumRealmScreen({super.key});
@@ -88,6 +89,32 @@ class _PremiumRealmScreenState extends State<PremiumRealmScreen>
       }
     }
   }
+
+  // ✅ Add this helper function (place near other methods)
+  Future<void> _openSubscriptionSettings() async {
+    final url = Uri.parse(
+        'https://play.google.com/store/account/subscriptions?package=com.ck.astrolotto');
+
+    try {
+      final canOpen = await canLaunchUrl(url);
+      if (canOpen) {
+        await launchUrl(
+          url,
+          mode: LaunchMode.externalApplication,
+        );
+      } else {
+        throw 'Cannot open subscriptions page.';
+      }
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text("Unable to open subscription settings"),
+          backgroundColor: Colors.redAccent,
+        ),
+      );
+    }
+  }
+
 
   @override
   void dispose() {
@@ -230,6 +257,25 @@ class _PremiumRealmScreenState extends State<PremiumRealmScreen>
                   'Align with celestial sounds', '/meditation'),
               _buildCard(context, '🧿 Ad-Free Cosmic Mode',
                   'Experience the stars uninterrupted', '/adfree'),
+              // ✅ Manage Subscription Link (VIP only)
+              if (_isVip)
+                Padding(
+                  padding: const EdgeInsets.only(top: 20),
+                  child: Center(
+                    child: TextButton(
+                      onPressed: _openSubscriptionSettings,
+                      child: Text(
+                        "Manage Subscription on Google Play",
+                        style: GoogleFonts.poppins(
+                          fontSize: 13,
+                          color: Colors.tealAccent,
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+
               const SizedBox(height: 40),
             ],
           ),
