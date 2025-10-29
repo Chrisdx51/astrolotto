@@ -54,105 +54,55 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  // ✅ Add this for timezone support
 
-// ✅ Initialize Firebase
-  await Firebase.initializeApp();
-  FirebaseMessaging.onBackgroundMessage(_firebaseBackgroundHandler);
+  debugPrint("🚀 App starting...");
 
-  // When a notification is tapped and the app opens:
-  FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-    // Optional: deep-link to a screen if present
-    final route = message.data['route'];
-    if (route != null) {
-      // Example: go to Generator screen if route == '/generator'
-      // NavigatorKey pattern recommended, but if you don't have it:
-      // Navigator.of(context).pushNamed(route);  // add using your navigator pattern
-    }
-  });
-
-// ✅ Setup local notifications with heads-up channel
-  const AndroidInitializationSettings androidSettings =
-  AndroidInitializationSettings('@mipmap/ic_launcher');
-
-  const AndroidNotificationChannel astroChannel = AndroidNotificationChannel(
-    'astro_lotto_channel',     // MUST MATCH Firebase key 🔥
-    'Astro Lotto Alerts',
-    description: 'Cosmic notifications and reminders',
-    importance: Importance.max, // 🔥 Heads-up (popup)
-    playSound: true,
-    enableLights: true,
-    enableVibration: true,
-  );
-
-  await flutterLocalNotificationsPlugin.initialize(
-    const InitializationSettings(android: androidSettings),
-  );
-
-// ✅ Register channel on first launch
-  final androidPlugin =
-  flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-      AndroidFlutterLocalNotificationsPlugin>();
-
-  await androidPlugin?.createNotificationChannel(astroChannel);
-
-
-// ✅ Request permission (Android 13+)
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-  await messaging.requestPermission(alert: true, sound: true, badge: true);
-  String? token = await messaging.getToken();
-  debugPrint("📌 FCM Token: $token");
-// ✅ Schedule weekly reminders (first basic test)
-
-
-// ✅ Listen for notifications when app is open
-  FirebaseMessaging.onMessage.listen((RemoteMessage message) {
-    final notification = message.notification;
-    if (notification != null) {
-      flutterLocalNotificationsPlugin.show(
-        notification.hashCode,
-        notification.title,
-        notification.body,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            'astro_lotto_channel',
-            'Astro Lotto Alerts',
-            importance: Importance.max,
-            priority: Priority.high,
-            playSound: true,
-          ),
-        ),
-      );
-    }
-  });
-
-  // 1️⃣ Load environment
+  // 1️⃣ Load .env
   try {
     await dotenv.load(fileName: ".env");
-    if (dotenv.env['SUPABASE_URL'] == null ||
-        dotenv.env['SUPABASE_ANON_KEY'] == null) {
-      throw Exception('Missing Supabase configuration in .env');
-    }
+    debugPrint("✅ .env loaded (${dotenv.env.length} keys)");
   } catch (e) {
-    debugPrint("⚠️ Could not load .env file: $e");
+    debugPrint("❌ .env load failed: $e");
   }
 
-  // 2️⃣ Initialize Supabase
+  // 2️⃣ Initialize Firebase
   try {
-    await Supabase.initialize(url: supabaseUrl, anonKey: supabaseAnonKey);
+    await Firebase.initializeApp();
+    debugPrint("✅ Firebase initialized");
   } catch (e) {
-    debugPrint("⚠️ Supabase init failed: $e");
+    debugPrint("❌ Firebase init failed: $e");
   }
 
-  // 3️⃣ Initialize Google Ads
-  await MobileAds.instance.initialize();
+  // 3️⃣ Initialize Supabase
+  try {
+    await Supabase.initialize(
+      url: supabaseUrl,
+      anonKey: supabaseAnonKey,
+    );
+    debugPrint("✅ Supabase initialized");
+  } catch (e) {
+    debugPrint("❌ Supabase init failed: $e");
+  }
 
-  final prefs = await SharedPreferences.getInstance();
-  final savedVip = prefs.getBool('is_vip') ?? false;
+  // 4️⃣ Initialize Google Ads
+  try {
+    await MobileAds.instance.initialize();
+    debugPrint("✅ Google Ads initialized");
+  } catch (e) {
+    debugPrint("❌ AdMob init failed: $e");
+  }
 
-  runApp(AstroLottoLuckApp(initialVip: savedVip));
-
+  // 5️⃣ SharedPreferences + run app
+  try {
+    final prefs = await SharedPreferences.getInstance();
+    final savedVip = prefs.getBool('is_vip') ?? false;
+    debugPrint("🏁 Running app (VIP=$savedVip)");
+    runApp(AstroLottoLuckApp(initialVip: savedVip));
+  } catch (e) {
+    debugPrint("❌ RunApp failed: $e");
+  }
 }
+
 
 Future<void> refreshVipStatus() async {
   final supabase = Supabase.instance.client;
