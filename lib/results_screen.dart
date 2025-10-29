@@ -8,7 +8,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 import 'package:confetti/confetti.dart';
-import 'package:audioplayers/audioplayers.dart';
+//import 'package:audioplayers/audioplayers.dart';
 import 'main.dart';
 
 const _cTurquoise = Color(0xFF12D1C0);
@@ -54,7 +54,7 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
   final Random _rng = Random();
 
   late final ConfettiController _confettiController;
-  final AudioPlayer _audioPlayer = AudioPlayer();
+  //final AudioPlayer _audioPlayer = AudioPlayer();
 
   bool _isSaving = false;
   String? _quote;
@@ -133,8 +133,8 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
     _starsAnim.dispose();
     _infoCardAnim.dispose();
     _confettiController.dispose();
-    _audioPlayer.stop();
-    _audioPlayer.dispose();
+    //_audioPlayer.stop();
+    //_audioPlayer.dispose();
     _moonGlow.dispose();
     for (var c in _ballAnims) {
       c.dispose();
@@ -152,7 +152,7 @@ class _ResultScreenState extends State<ResultScreen> with TickerProviderStateMix
 
   Future<void> _playCelebrateSound() async {
     try {
-      await _audioPlayer.play(AssetSource('sounds/celebrate.mp3'));
+      //await _audioPlayer.play(AssetSource('sounds/celebrate.mp3'));
     } catch (e) {
       debugPrint('⚠️ Sound error: $e');
     }

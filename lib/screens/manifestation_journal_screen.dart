@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'package:audioplayers/audioplayers.dart';
+//import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -20,7 +20,7 @@ class ManifestationJournalScreen extends StatefulWidget {
 class _ManifestationJournalScreenState
     extends State<ManifestationJournalScreen> with SingleTickerProviderStateMixin {
   final TextEditingController _intentionCtrl = TextEditingController();
-  final AudioPlayer _player = AudioPlayer();
+  //final AudioPlayer _player = AudioPlayer();
 
   bool _working = false;
   String _aiResponse = '';
@@ -74,7 +74,7 @@ class _ManifestationJournalScreenState
 
   @override
   void dispose() {
-    _player.dispose();
+    //_player.dispose();
     _intentionCtrl.dispose();
     _progressTimer?.cancel();
     _messageTimer?.cancel();
@@ -203,7 +203,7 @@ class _ManifestationJournalScreenState
   }
 
   void _playSuccessTone() async {
-    await _player.play(AssetSource('sounds/manifest_success.mp3'), volume: 0.5);
+    //await _player.play(AssetSource('sounds/manifest_success.mp3'), volume: 0.5);
   }
 
   void _toast(String msg) {

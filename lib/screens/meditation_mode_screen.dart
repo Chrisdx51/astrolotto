@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:audioplayers/audioplayers.dart';
+//import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:http/http.dart' as http;
@@ -39,8 +39,8 @@ class _MeditationModeScreenState extends State<MeditationModeScreen>
   String _ambientTrack = 'meditation_loop.mp3';
 
   // ── Audio
-  final AudioPlayer _bgPlayer = AudioPlayer();
-  final AudioPlayer _tonePlayer = AudioPlayer();
+  //final AudioPlayer _bgPlayer = AudioPlayer();
+  //final AudioPlayer _tonePlayer = AudioPlayer();
   bool _bgPlaying = false;
 
   // ── Mode
@@ -512,14 +512,14 @@ class _MeditationModeScreenState extends State<MeditationModeScreen>
 
   Future<void> _toggleAmbient() async {
     if (_bgPlaying) {
-      await _bgPlayer.stop();
+     // await _bgPlayer.stop();
       _bgPlaying = false;
     } else {
-      await _bgPlayer.play(
-        AssetSource('sounds/$_ambientTrack'),
-        volume: 0.36,
-      );
-      await _bgPlayer.setReleaseMode(ReleaseMode.loop);
+      //await _bgPlayer.play(
+       // AssetSource('sounds/$_ambientTrack'),
+        //volume: 0.36,
+     // );
+     // await _bgPlayer.setReleaseMode(ReleaseMode.loop);
       _bgPlaying = true;
     }
     if (mounted) setState(() {});
@@ -532,7 +532,7 @@ class _MeditationModeScreenState extends State<MeditationModeScreen>
     required String teach,
   }) async {
     // Stop any previous tone
-    await _tonePlayer.stop();
+    //await _tonePlayer.stop();
 
     await showModalBottomSheet(
       context: context,
@@ -580,10 +580,10 @@ class _MeditationModeScreenState extends State<MeditationModeScreen>
                   ElevatedButton.icon(
                     onPressed: () async {
                       if (!playing) {
-                        await _tonePlayer.play(AssetSource('sounds/$asset'), volume: 0.6);
-                        await _tonePlayer.setReleaseMode(ReleaseMode.loop);
+                      //  await _tonePlayer.play(AssetSource('sounds/$asset'), volume: 0.6);
+                      //  await _tonePlayer.setReleaseMode(ReleaseMode.loop);
                       } else {
-                        await _tonePlayer.stop();
+                      //  await _tonePlayer.stop();
                       }
                       setModal(() => playing = !playing);
                     },
@@ -604,7 +604,7 @@ class _MeditationModeScreenState extends State<MeditationModeScreen>
     );
 
     // Ensure tone stops when sheet closes
-    await _tonePlayer.stop();
+    //await _tonePlayer.stop();
   }
 
   // ─────────────────────────────────────────────────────────────
@@ -613,8 +613,8 @@ class _MeditationModeScreenState extends State<MeditationModeScreen>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _bgPlayer.dispose();
-    _tonePlayer.dispose();
+    //_bgPlayer.dispose();
+   // _tonePlayer.dispose();
     _stopAllVoice();
     _progressTimer?.cancel();
     _statusTimer?.cancel();
