@@ -53,18 +53,9 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
 }
 
 Future<void> main() async {
-  WidgetsFlutterBinding.ensureInitialized(); // ✅ Crucial for iOS
+  WidgetsFlutterBinding.ensureInitialized(); // Needed before async code
 
-  try {
-    // ✅ Only initialize Firebase on supported platforms
-    if (Platform.isIOS || Platform.isAndroid) {
-      await Firebase.initializeApp();
-    }
-  } catch (e) {
-    debugPrint("Firebase init failed: $e");
-  }
-
-  // ✅ Load .env variables safely
+  // ✅ Load environment variables
   await dotenv.load(fileName: ".env");
 
   // ✅ Initialize Supabase
@@ -73,10 +64,28 @@ Future<void> main() async {
     anonKey: dotenv.env['SUPABASE_ANON_KEY'] ?? '',
   );
 
-  // ✅ Initialize AdMob
+  // ✅ Initialize Google Mobile Ads
   await MobileAds.instance.initialize();
 
-  // ✅ Launch the correct app class
+  // ✅ Initialize Firebase safely (AFTER Flutter setup)
+  try {
+    await Firebase.initializeApp();
+  } catch (e) {
+    debugPrint("⚠️ Firebase init failed: $e");
+  }
+
+  // ✅ Initialize local notifications (safe late init)
+  try {
+    const AndroidInitializationSettings androidSettings =
+    AndroidInitializationSettings('@mipmap/ic_launcher');
+    const InitializationSettings initSettings =
+    InitializationSettings(android: androidSettings);
+    await flutterLocalNotificationsPlugin.initialize(initSettings);
+  } catch (e) {
+    debugPrint("⚠️ Local notifications init failed: $e");
+  }
+
+  // ✅ Finally, launch app
   runApp(const AstroLottoLuckApp(initialVip: false));
 }
 
