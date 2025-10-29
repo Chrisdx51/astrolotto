@@ -2,10 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+
+	<!-- 🌠 App Metadata -->
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 
-	<!-- App display name shown under the icon -->
+	<!-- Display name shown under the app icon -->
 	<key>CFBundleDisplayName</key>
 	<string>Astro Lotto Luck</string>
 
@@ -16,7 +18,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 
-	<!-- Internal technical name (kept lowercase for consistency) -->
+	<!-- Internal technical app name -->
 	<key>CFBundleName</key>
 	<string>astrolotto</string>
 
@@ -31,12 +33,14 @@
 
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+
+	<!-- Launch screens -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIMainStoryboardFile</key>
 	<string>Main</string>
 
-	<!-- Screen orientation support -->
+	<!-- 📱 Supported orientations -->
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -52,16 +56,34 @@
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
 
-	<!-- Performance and input settings -->
+	<!-- ⚙️ Performance and input -->
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 
-	<!-- Hide the status bar for immersive look -->
+	<!-- 🌌 Status bar -->
 	<key>UIStatusBarHidden</key>
 	<true/>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
+
+	<!-- 🔐 Privacy Usage Descriptions (Apple-required) -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app uses your location to align forecasts and lucky numbers with your region.</string>
+
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Your location helps personalize your cosmic luck readings and local draw insights.</string>
+
+	<!-- Optional but recommended -->
+	<key>NSCameraUsageDescription</key>
+	<string>Camera access is used for personalized aura and cosmic visual experiences.</string>
+
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Photo access allows you to save or share your generated lucky results and charms.</string>
+
+	<key>NSUserTrackingUsageDescription</key>
+	<string>Tracking helps us improve your experience and show only relevant cosmic content.</string>
+
 </dict>
 </plist>
