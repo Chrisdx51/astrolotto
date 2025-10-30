@@ -41,7 +41,7 @@
 
 	<!-- ✅ Build number synced to Flutter pubspec -->
 	<key>CFBundleVersion</key>
-	<string>27</string>
+	<string>28</string>
 
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
@@ -50,23 +50,11 @@
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 
-	<!-- ✅ Scene configuration for Flutter -->
+	<!-- 🚫 FIXED Scene configuration (removed UISceneConfigurations) -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
 		<false/>
-		<key>UISceneConfigurations</key>
-		<dict>
-			<key>UIWindowSceneSessionRoleApplication</key>
-			<array>
-				<dict>
-					<key>UISceneConfigurationName</key>
-					<string>Default Configuration</string>
-					<key>UISceneDelegateClassName</key>
-					<string>$(PRODUCT_MODULE_NAME).AppDelegate</string>
-				</dict>
-			</array>
-		</dict>
 	</dict>
 
 	<!-- 📱 Supported orientations -->

@@ -3,7 +3,7 @@ import Flutter
 import FirebaseCore
 import GoogleMobileAds
 
-@main
+@UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
 
   override func application(
@@ -11,7 +11,7 @@ import GoogleMobileAds
   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    // ✅ 1) Initialize Firebase (with robust safety check)
+    // ✅ Initialize Firebase (safe check)
     if FirebaseApp.app() == nil {
       if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
       let options = FirebaseOptions(contentsOfFile: path) {
@@ -24,16 +24,16 @@ import GoogleMobileAds
       }
     }
 
-    // ✅ 2) Register Flutter plugins
+    // ✅ Register Flutter plugins
     GeneratedPluginRegistrant.register(with: self)
 
-    // ✅ 3) Initialize AdMob safely AFTER Flutter startup
+    // ✅ Initialize Google AdMob after a short delay (to ensure Flutter is ready)
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
       GADMobileAds.sharedInstance().start(completionHandler: nil)
       print("✅ AdMob initialized safely after Flutter startup.")
     }
 
-    // ✅ 4) Continue app launch normally
+    // ✅ Continue app launch
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
