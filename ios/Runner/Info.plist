@@ -2,11 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-<!-- ✅ Google AdMob iOS App ID -->
-<key>GADApplicationIdentifier</key>
-<string>ca-app-pub-5354629198133392~2172061320</string>
 
+	<!-- ✅ Google AdMob iOS App ID -->
+	<key>GADApplicationIdentifier</key>
+	<string>ca-app-pub-5354629198133392~2172061320</string>
 
+	<!-- ✅ Required for iOS 14+ tracking transparency -->
+	<key>NSUserTrackingUsageDescription</key>
+	<string>This identifier will be used to deliver personalized ads and improve your experience.</string>
 
 	<!-- 🌠 App Metadata -->
 	<key>CFBundleDevelopmentRegion</key>
@@ -32,23 +35,22 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 
+	<!-- ✅ Version synced to Flutter pubspec -->
 	<key>CFBundleShortVersionString</key>
-	<string>$(FLUTTER_BUILD_NAME)</string>
+	<string>1.1.9</string>
 
-	<key>CFBundleSignature</key>
-	<string>????</string>
-
+	<!-- ✅ Build number synced to Flutter pubspec -->
 	<key>CFBundleVersion</key>
-	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<string>25</string>
 
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 
-	<!-- ✅ Launch screen (do NOT include a Main storyboard) -->
+	<!-- ✅ Launch screen -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 
-	<!-- ✅ Required by iOS 13+ (scene configuration for Flutter) -->
+	<!-- ✅ Scene configuration for Flutter -->
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>
@@ -95,7 +97,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<false/>
 
-	<!-- 🔐 Privacy Usage Descriptions (Apple-required) -->
+	<!-- 🔐 Privacy Usage Descriptions -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>This app uses your location to align forecasts and lucky numbers with your region.</string>
 
@@ -107,9 +109,6 @@
 
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo access allows you to save or share your generated lucky results and charms.</string>
-
-	<key>NSUserTrackingUsageDescription</key>
-	<string>Tracking helps us improve your experience and show only relevant cosmic content.</string>
 
 </dict>
 </plist>
