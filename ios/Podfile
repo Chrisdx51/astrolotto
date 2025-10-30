@@ -39,8 +39,6 @@ target 'Runner' do
   pod 'in_app_purchase_storekit'
   pod 'share_plus'
   pod 'package_info_plus'
-
-  pod 'geolocator_apple'
 end
 
 post_install do |installer|
