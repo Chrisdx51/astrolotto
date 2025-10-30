@@ -1,6 +1,6 @@
 import UIKit
 import Flutter
-import FirebaseCore   // ✅ Needed for Firebase Messaging, Installations, etc.
+import FirebaseCore
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -10,15 +10,21 @@ import FirebaseCore   // ✅ Needed for Firebase Messaging, Installations, etc.
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    // ✅ Initialize Firebase first — no try/catch needed, just ensure it's once.
+    // 🔎 1) Find the plist in the app bundle
     if FirebaseApp.app() == nil {
-      FirebaseApp.configure()
+      if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
+         let options = FirebaseOptions(contentsOfFile: path) {
+        print("✅ Firebase plist FOUND at: \(path)")
+        print("✅ Firebase will init for BUNDLE_ID: \(options.bundleID)")
+        FirebaseApp.configure(options: options)            // ← robust configure
+      } else {
+        // If we ever get here, the file is not in the app bundle
+        print("❌ GoogleService-Info.plist NOT FOUND in bundle. App will crash without it.")
+        assertionFailure("Missing GoogleService-Info.plist in iOS Runner target")
+      }
     }
 
-    // ✅ Register Flutter plugins AFTER Firebase is ready
     GeneratedPluginRegistrant.register(with: self)
-
-    // ✅ Continue launching normally
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
