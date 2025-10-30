@@ -11,9 +11,14 @@ import FirebaseCore   // ✅ Needed for Firebase Messaging to work on iOS
   ) -> Bool {
 
     // ✅ Initialize Firebase before Flutter starts (safe if already configured)
-    if FirebaseApp.app() == nil {
-      FirebaseApp.configure()
+    do {
+      if FirebaseApp.app() == nil {
+        FirebaseApp.configure()
+      }
+    } catch {
+      print("⚠️ Firebase already configured or not available yet: \(error)")
     }
+
 
     GeneratedPluginRegistrant.register(with: self)
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)

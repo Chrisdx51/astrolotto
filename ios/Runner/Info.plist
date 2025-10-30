@@ -13,8 +13,10 @@
 
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
+
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
+
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 
@@ -24,21 +26,41 @@
 
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
+
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
+
 	<key>CFBundleSignature</key>
 	<string>????</string>
+
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
 
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 
-	<!-- Launch screens -->
+	<!-- ✅ Launch screen (do NOT include a Main storyboard) -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-	<key>UIMainStoryboardFile</key>
-	<string>Main</string>
+
+	<!-- ✅ Required by iOS 13+ (scene configuration for Flutter) -->
+	<key>UIApplicationSceneManifest</key>
+	<dict>
+		<key>UIApplicationSupportsMultipleScenes</key>
+		<false/>
+		<key>UISceneConfigurations</key>
+		<dict>
+			<key>UIWindowSceneSessionRoleApplication</key>
+			<array>
+				<dict>
+					<key>UISceneConfigurationName</key>
+					<string>Default Configuration</string>
+					<key>UISceneDelegateClassName</key>
+					<string>$(PRODUCT_MODULE_NAME).AppDelegate</string>
+				</dict>
+			</array>
+		</dict>
+	</dict>
 
 	<!-- 📱 Supported orientations -->
 	<key>UISupportedInterfaceOrientations</key>
@@ -75,7 +97,6 @@
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Your location helps personalize your cosmic luck readings and local draw insights.</string>
 
-	<!-- Optional but recommended -->
 	<key>NSCameraUsageDescription</key>
 	<string>Camera access is used for personalized aura and cosmic visual experiences.</string>
 

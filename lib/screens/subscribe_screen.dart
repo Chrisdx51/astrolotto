@@ -1,11 +1,15 @@
 import 'dart:async';
-import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
+import 'package:http/http.dart' as http;
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// 🍏 Import your Supabase config for iOS constants
+import '../supabase_config.dart';
 
 class SubscribeScreen extends StatefulWidget {
   const SubscribeScreen({super.key});
@@ -17,7 +21,12 @@ class SubscribeScreen extends StatefulWidget {
 class _SubscribeScreenState extends State<SubscribeScreen>
     with TickerProviderStateMixin {
   final InAppPurchase _iap = InAppPurchase.instance;
-  final Set<String> _productIds = {'cosmic_premium'};
+
+  // ✅ Detect platform & use right product IDs
+  late final Set<String> _productIds = Platform.isIOS
+      ? {iosWeeklyId, iosMonthlyId, iosYearlyId}
+      : {'cosmic_premium'};
+
   List<ProductDetails> _products = [];
   bool _isAvailable = false;
   bool _isProcessing = false;
@@ -32,10 +41,9 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     super.initState();
     _initStore();
 
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 2),
-    )..repeat(reverse: true);
+    _pulseController =
+    AnimationController(vsync: this, duration: const Duration(seconds: 2))
+      ..repeat(reverse: true);
     _pulseAnimation = Tween<double>(begin: 0.92, end: 1.06).animate(
       CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
     );
@@ -48,11 +56,16 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     super.dispose();
   }
 
+  // --------------------------------------------------------------
+  // 🔮 Initialize Store
+  // --------------------------------------------------------------
   Future<void> _initStore() async {
     final available = await _iap.isAvailable();
     setState(() => _isAvailable = available);
+
     if (!available) {
-      setState(() => _statusMessage = "Google Play unavailable");
+      setState(() => _statusMessage =
+      Platform.isIOS ? "App Store unavailable" : "Google Play unavailable");
       return;
     }
 
@@ -71,6 +84,9 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     });
   }
 
+  // --------------------------------------------------------------
+  // 🪙 Handle Purchases
+  // --------------------------------------------------------------
   Future<void> _handlePurchase(PurchaseDetails purchase) async {
     if (purchase.status == PurchaseStatus.error) {
       setState(() => _statusMessage = "Purchase failed");
@@ -91,6 +107,9 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     }
   }
 
+  // --------------------------------------------------------------
+  // 🌍 Verify on Supabase
+  // --------------------------------------------------------------
   Future<void> _verifyPurchaseOnServer(PurchaseDetails purchase) async {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser;
@@ -99,9 +118,13 @@ class _SubscribeScreenState extends State<SubscribeScreen>
 
     if (user == null) return;
 
+    // Choose endpoint for platform
+    final verifyUrl = Platform.isIOS
+        ? 'https://pgqnrhyaqjynxffqyjls.supabase.co/functions/v1/verify_ios_vip'
+        : 'https://pgqnrhyaqjynxffqyjls.supabase.co/functions/v1/verify_vip_purchase';
+
     final res = await http.post(
-      Uri.parse(
-          'https://pgqnrhyaqjynxffqyjls.supabase.co/functions/v1/verify_vip_purchase'),
+      Uri.parse(verifyUrl),
       headers: {
         'Content-Type': 'application/json',
         'Authorization': 'Bearer ${supabase.auth.currentSession?.accessToken}',
@@ -110,13 +133,17 @@ class _SubscribeScreenState extends State<SubscribeScreen>
         "userId": user.id,
         "purchaseToken": token,
         "offerId": offerId,
+        "sharedSecret": Platform.isIOS ? appStoreSharedSecret : null,
       }),
     );
 
-    print("Server verify response: ${res.body}");
+    debugPrint("Server verify response: ${res.body}");
     await _grantVipAccess();
   }
 
+  // --------------------------------------------------------------
+  // ☁️ Save token to Supabase
+  // --------------------------------------------------------------
   Future<void> _sendTokenToServer(String token) async {
     final supabase = Supabase.instance.client;
     final user = supabase.auth.currentUser;
@@ -131,6 +158,9 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     debugPrint("Token uploaded to Supabase");
   }
 
+  // --------------------------------------------------------------
+  // 🌟 Local VIP Activation
+  // --------------------------------------------------------------
   Future<void> _grantVipAccess() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool('is_vip', true);
@@ -140,12 +170,15 @@ class _SubscribeScreenState extends State<SubscribeScreen>
       _statusMessage = "VIP Activated!";
     });
 
-    await Future.delayed(const Duration(milliseconds: 200));
+    await Future.delayed(const Duration(milliseconds: 250));
     if (mounted) {
-      Navigator.pushNamedAndRemoveUntil(context, '/generator', (route) => false);
+      Navigator.pushNamedAndRemoveUntil(context, '/generator', (r) => false);
     }
   }
 
+  // --------------------------------------------------------------
+  // 💰 Buy and Restore
+  // --------------------------------------------------------------
   void _buy(ProductDetails product) {
     setState(() {
       _isProcessing = true;
@@ -163,6 +196,9 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     await _iap.restorePurchases();
   }
 
+  // --------------------------------------------------------------
+  // 🖼️ UI BUILD (Your full design kept!)
+  // --------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -184,35 +220,28 @@ class _SubscribeScreenState extends State<SubscribeScreen>
         padding: const EdgeInsets.all(20),
         child: Column(
           children: [
-            // ---------- Animated Logo ----------
+            // Animated Logo
             AnimatedBuilder(
               animation: _pulseAnimation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _pulseAnimation.value,
-                  child: Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [
-                          const Color(0xFF12D1C0).withOpacity(0.3),
-                          Colors.transparent,
-                        ],
-                      ),
-                    ),
-                    child: Image.asset(
-                      'assets/images/logolot.png',
-                      height: 150,
-                      fit: BoxFit.contain,
+              builder: (context, child) => Transform.scale(
+                scale: _pulseAnimation.value,
+                child: Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: RadialGradient(
+                      colors: [
+                        const Color(0xFF12D1C0).withOpacity(0.3),
+                        Colors.transparent,
+                      ],
                     ),
                   ),
-                );
-              },
+                  child: Image.asset('assets/images/logolot.png',
+                      height: 150, fit: BoxFit.contain),
+                ),
+              ),
             ),
             const SizedBox(height: 16),
-
-            // ---------- Headline (Updated Selling Copy) ----------
             Text(
               "Unlock VIP Cosmic Power ✨",
               textAlign: TextAlign.center,
@@ -226,56 +255,37 @@ class _SubscribeScreenState extends State<SubscribeScreen>
             ),
             const SizedBox(height: 10),
             Text(
-              "Remove limits. Access deeper predictions. Enter exclusive realms. "
-                  "Your luck deserves the VIP treatment.",
+              "Remove limits. Access deeper predictions. Enter exclusive realms. Your luck deserves the VIP treatment.",
               textAlign: TextAlign.center,
               style: GoogleFonts.poppins(
                 fontSize: 15.5,
-                fontWeight: FontWeight.w500,
                 color: Colors.white70,
                 height: 1.38,
               ),
             ),
             const SizedBox(height: 26),
 
-
-            // ---------- PRICING BARS (NOW AT THE TOP) ----------
+            // Pricing area
             if (!_isAvailable)
-              _buildErrorCard("Google Play unavailable")
+              _buildErrorCard("Store unavailable")
             else if (_products.isEmpty)
               _buildLoadingState()
             else
-              ..._products.map((p) => _buildPlanButton(p)).toList(),
+              ..._products.map(_buildPlanButton).toList(),
 
             const SizedBox(height: 28),
 
-            // ---------- VIP Benefits (now BELOW pricing) ----------
-            _buildFeatureCard(
-              icon: Icons.block,
-              title: "No Interstitial Ads",
-              subtitle:
-              "Enjoy a distraction-free experience. No pop-ups or full-screen ads.",
-            ),
-            _buildFeatureCard(
-              icon: Icons.auto_awesome,
-              title: "Cosmos AI Pro Predictions",
-              subtitle: "Advanced AI with deeper cosmic alignment analysis.",
-            ),
-            _buildFeatureCard(
-              icon: Icons.lock_open,
-              title: "VIP-Only Realms",
-              subtitle: "Access exclusive zones and premium content.",
-            ),
-            _buildFeatureCard(
-              icon: Icons.psychology,
-              title: "Personal Lucky Insights",
-              subtitle: "Daily personalized cosmic guidance.",
-            ),
-            _buildFeatureCard(
-              icon: Icons.card_giftcard,
-              title: "All Future Premium Features",
-              subtitle: "Free access to every new VIP feature.",
-            ),
+            // Benefits
+            _buildFeatureCard(Icons.block, "No Interstitial Ads",
+                "Enjoy a distraction-free experience."),
+            _buildFeatureCard(Icons.auto_awesome, "Cosmos AI Pro Predictions",
+                "Advanced AI with deeper alignment."),
+            _buildFeatureCard(Icons.lock_open, "VIP-Only Realms",
+                "Access exclusive zones and premium content."),
+            _buildFeatureCard(Icons.psychology, "Personal Lucky Insights",
+                "Daily personalized cosmic guidance."),
+            _buildFeatureCard(Icons.card_giftcard, "All Future Premium Features",
+                "Free access to every new VIP feature."),
             const SizedBox(height: 12),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -291,20 +301,24 @@ class _SubscribeScreenState extends State<SubscribeScreen>
             ),
             const SizedBox(height: 28),
 
-            // ---------- Secure Payment Badges ----------
+            // Badges
             Wrap(
               alignment: WrapAlignment.center,
               spacing: 12,
               runSpacing: 8,
               children: [
                 _buildTrustBadge(Icons.https, "SSL Secured"),
-                _buildTrustBadge(Icons.verified, "Google Play Verified"),
+                _buildTrustBadge(
+                    Platform.isIOS ? Icons.apple : Icons.verified,
+                    Platform.isIOS
+                        ? "App Store Verified"
+                        : "Google Play Verified"),
                 _buildTrustBadge(Icons.credit_card, "Safe Checkout"),
               ],
             ),
             const SizedBox(height: 28),
 
-            // ---------- Restore & Status ----------
+            // Restore button + status
             if (_isProcessing)
               const CircularProgressIndicator(color: Color(0xFF00E5D0))
             else
@@ -318,7 +332,6 @@ class _SubscribeScreenState extends State<SubscribeScreen>
                   ),
                 ),
               ),
-
             const SizedBox(height: 8),
             Text(
               _statusMessage,
@@ -337,15 +350,11 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     );
   }
 
-  // -------------------------------------------------------------------------
-  // Helper widgets – UNCHANGED except for visual polish on plan button
-  // -------------------------------------------------------------------------
-
-  Widget _buildFeatureCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
+  // --------------------------------------------------------------
+  // Helper UI widgets
+  // --------------------------------------------------------------
+  Widget _buildFeatureCard(
+      IconData icon, String title, String subtitle) {
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
@@ -369,22 +378,15 @@ class _SubscribeScreenState extends State<SubscribeScreen>
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: GoogleFonts.poppins(
-                    fontWeight: FontWeight.w600,
-                    color: Colors.white,
-                    fontSize: 15,
-                  ),
-                ),
+                Text(title,
+                    style: GoogleFonts.poppins(
+                        fontWeight: FontWeight.w600,
+                        color: Colors.white,
+                        fontSize: 15)),
                 const SizedBox(height: 4),
-                Text(
-                  subtitle,
-                  style: GoogleFonts.poppins(
-                    fontSize: 13,
-                    color: Colors.white70,
-                  ),
-                ),
+                Text(subtitle,
+                    style: GoogleFonts.poppins(
+                        fontSize: 13, color: Colors.white70)),
               ],
             ),
           ),
@@ -393,114 +395,87 @@ class _SubscribeScreenState extends State<SubscribeScreen>
     );
   }
 
-  // PREMIUM COSMIC GRADIENT PLAN BUTTON (same as last version)
-  Widget _buildPlanButton(ProductDetails product) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      width: double.infinity,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [
-            Color(0xFF6A11CB), // Deep cosmic purple
-            Color(0xFF2575FC), // Vibrant blue
-            Color(0xFF00D4AA), // Cosmic teal
-          ],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: const Color(0xFF00D4AA).withOpacity(0.4),
-            blurRadius: 12,
-            offset: const Offset(0, 6),
-          ),
-        ],
-        border: Border.all(
-          color: Colors.white.withOpacity(0.2),
-          width: 1,
-        ),
-      ),
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          padding: const EdgeInsets.symmetric(vertical: 22),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(18),
-          ),
-        ),
-        onPressed: _isProcessing ? null : () => _buy(product),
-        child: Text(
-          "${product.title.split("(")[0].trim().toUpperCase()} • ${product.price}",
-          style: GoogleFonts.poppins(
-            fontWeight: FontWeight.w700,
-            fontSize: 18,
-            color: Colors.white,
-            letterSpacing: 0.5,
-          ),
-          textAlign: TextAlign.center,
-        ),
-      ),
-    );
-  }
-
-  Widget _buildTrustBadge(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-      decoration: BoxDecoration(
-        color: const Color(0xFF13162B),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: Colors.white70),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: GoogleFonts.poppins(fontSize: 11, color: Colors.white70),
-          ),
+  Widget _buildPlanButton(ProductDetails product) => Container(
+    margin: const EdgeInsets.only(bottom: 14),
+    width: double.infinity,
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(18),
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [
+          Color(0xFF6A11CB),
+          Color(0xFF2575FC),
+          Color(0xFF00D4AA),
         ],
       ),
-    );
-  }
-
-  Widget _buildErrorCard(String message) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      margin: const EdgeInsets.only(bottom: 16),
-      decoration: BoxDecoration(
-        color: Colors.red.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.warning, color: Colors.redAccent),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: GoogleFonts.poppins(color: Colors.redAccent),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Column(
-      children: [
-        const CircularProgressIndicator(color: Color(0xFF00E5D0)),
-        const SizedBox(height: 16),
-        Text(
-          "Connecting to Google Play...",
-          style: GoogleFonts.poppins(color: Colors.white70),
+      boxShadow: [
+        BoxShadow(
+          color: const Color(0xFF00D4AA).withOpacity(0.4),
+          blurRadius: 12,
+          offset: const Offset(0, 6),
         ),
       ],
-    );
-  }
+      border: Border.all(color: Colors.white.withOpacity(0.2), width: 1),
+    ),
+    child: ElevatedButton(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.transparent,
+        shadowColor: Colors.transparent,
+        padding: const EdgeInsets.symmetric(vertical: 22),
+        shape:
+        RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+      ),
+      onPressed: _isProcessing ? null : () => _buy(product),
+      child: Text(
+        "${product.title.split("(")[0].trim().toUpperCase()} • ${product.price}",
+        style: GoogleFonts.poppins(
+          fontWeight: FontWeight.w700,
+          fontSize: 18,
+          color: Colors.white,
+          letterSpacing: 0.5,
+        ),
+        textAlign: TextAlign.center,
+      ),
+    ),
+  );
+
+  Widget _buildTrustBadge(IconData icon, String label) => Container(
+    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+    decoration: BoxDecoration(
+      color: const Color(0xFF13162B),
+      borderRadius: BorderRadius.circular(20),
+      border: Border.all(color: Colors.white24),
+    ),
+    child: Row(mainAxisSize: MainAxisSize.min, children: [
+      Icon(icon, size: 16, color: Colors.white70),
+      const SizedBox(width: 6),
+      Text(label,
+          style: GoogleFonts.poppins(fontSize: 11, color: Colors.white70)),
+    ]),
+  );
+
+  Widget _buildErrorCard(String message) => Container(
+    padding: const EdgeInsets.all(20),
+    margin: const EdgeInsets.only(bottom: 16),
+    decoration: BoxDecoration(
+      color: Colors.red.withOpacity(0.1),
+      borderRadius: BorderRadius.circular(16),
+      border: Border.all(color: Colors.redAccent.withOpacity(0.3)),
+    ),
+    child: Row(children: [
+      const Icon(Icons.warning, color: Colors.redAccent),
+      const SizedBox(width: 12),
+      Expanded(
+          child: Text(message,
+              style: GoogleFonts.poppins(color: Colors.redAccent))),
+    ]),
+  );
+
+  Widget _buildLoadingState() => Column(children: [
+    const CircularProgressIndicator(color: Color(0xFF00E5D0)),
+    const SizedBox(height: 16),
+    Text("Connecting to Store...",
+        style: GoogleFonts.poppins(color: Colors.white70)),
+  ]);
 }

@@ -1,0 +1,16 @@
+# Astro Lotto Luck — iOS Podfile
+platform :ios, '13.0'
+
+use_frameworks!
+use_modular_headers!
+
+target 'Runner' do
+  flutter_application_path = '../'
+  eval(File.read(File.join(flutter_application_path, '.flutter-plugins-dependencies')), binding)
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
