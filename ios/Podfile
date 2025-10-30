@@ -1,12 +1,30 @@
-# Astro Lotto Luck — iOS Podfile
+# 🚀 Astro Lotto Luck – working Podfile for Flutter iOS builds
 platform :ios, '13.0'
 
 use_frameworks!
 use_modular_headers!
 
+# Point to Flutter's generated plugin dependencies
+flutter_application_path = '../'
+eval(File.read(File.join(flutter_application_path, 'packages', 'flutter_tools', 'bin', 'podhelper.rb')), binding)
+
 target 'Runner' do
-  flutter_application_path = '../'
-  eval(File.read(File.join(flutter_application_path, '.flutter-plugins-dependencies')), binding)
+  flutter_ios_podfile_setup
+  use_frameworks!
+  use_modular_headers!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+
+  # 👇 Force-include your known iOS plugins
+  pod 'Firebase/Core'
+  pod 'Firebase/Messaging'
+  pod 'Google-Mobile-Ads-SDK'
+  pod 'in_app_purchase_storekit'
+  pod 'share_plus'
+  pod 'package_info_plus'
+  pod 'flutter_local_notifications'
+  pod 'geolocator_apple'
+
 end
 
 post_install do |installer|
