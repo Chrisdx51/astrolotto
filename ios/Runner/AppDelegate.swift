@@ -6,6 +6,8 @@ import GoogleMobileAds
 @UIApplicationMain
 @objc class AppDelegate: FlutterAppDelegate {
 
+  var flutterEngine: FlutterEngine?
+
   override func application(
   _ application: UIApplication,
   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
@@ -24,16 +26,27 @@ import GoogleMobileAds
       }
     }
 
-    // ✅ Register Flutter plugins
-    GeneratedPluginRegistrant.register(with: self)
+    // ✅ Create a Flutter engine (ensures Flutter renders even without SceneDelegate)
+    flutterEngine = FlutterEngine(name: "AstroLottoEngine")
+    flutterEngine?.run()
+    GeneratedPluginRegistrant.register(with: flutterEngine!)
 
-    // ✅ Initialize Google AdMob after a short delay (to ensure Flutter is ready)
+    // ✅ Show Flutter view controller manually (fixes black screen)
+    if let flutterEngine = flutterEngine {
+      let flutterViewController = FlutterViewController(engine: flutterEngine, nibName: nil, bundle: nil)
+      self.window = UIWindow(frame: UIScreen.main.bounds)
+      self.window?.rootViewController = flutterViewController
+      self.window?.makeKeyAndVisible()
+      print("✅ FlutterViewController loaded successfully.")
+    }
+
+    // ✅ Initialize AdMob after short delay
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
       GADMobileAds.sharedInstance().start(completionHandler: nil)
       print("✅ AdMob initialized safely after Flutter startup.")
     }
 
-    // ✅ Continue app launch
+    print("✅ AppDelegate finished launching successfully.")
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
