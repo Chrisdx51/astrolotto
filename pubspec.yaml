@@ -3,7 +3,7 @@ description: "Astro Lotto Luck App"
 publish_to: "none"
 
 # 🧭 Versioning — app store build code
-version: 1.1.9+39
+version: 1.1.9+40
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -76,5 +76,6 @@ flutter_native_splash:
 flutter_launcher_icons:
   android: "launcher_icon"
   ios: true
-  image_path: assets/images/logolot.png
+  image_path_ios: assets/images/logolot_ios.png
+  image_path_android: assets/images/logolot.png
   min_sdk_android: 21

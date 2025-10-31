@@ -15,7 +15,6 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 
-	<!-- Display name shown under the app icon -->
 	<key>CFBundleDisplayName</key>
 	<string>Astro Lotto Luck</string>
 
@@ -28,7 +27,6 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 
-	<!-- Internal technical app name -->
 	<key>CFBundleName</key>
 	<string>astrolotto</string>
 
@@ -91,9 +89,23 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo access allows you to save or share your generated lucky results and charms.</string>
 
-	<!-- ✅ Required for AdMob & UMP (consent form on iOS) -->
+	<!-- ✅ AdMob / UMP requirements -->
 	<key>GADIsAdManagerApp</key>
 	<false/>
+
+	<!-- ✅ Network & security (fixes many launch crashes) -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsArbitraryLoads</key>
+		<true/>
+	</dict>
+
+	<!-- ✅ Background modes if used (safe default) -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 
 </dict>
 </plist>

@@ -1,7 +1,7 @@
-# 🚀 Astro Lotto Luck — Final Clean Flutter Podfile
+# 🚀 Astro Lotto Luck — Clean + Safe iOS Podfile (for Codemagic)
 platform :ios, '13.0'
 
-use_frameworks!
+use_frameworks! :linkage => :static
 use_modular_headers!
 
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
@@ -25,7 +25,6 @@ def flutter_root
   raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}"
 end
 
-# 👇 THIS loads Flutter's helper functions, which defines flutter_install_all_ios_pods
 require File.expand_path(File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb'))
 
 flutter_ios_podfile_setup
@@ -33,14 +32,23 @@ flutter_ios_podfile_setup
 target 'Runner' do
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # 👇 Only include core iOS SDKs that Flutter won't add automatically
+  # ✅ Core SDKs used by your app
   pod 'Firebase/Core'
   pod 'Firebase/Messaging'
   pod 'Google-Mobile-Ads-SDK'
+
+  # ✅ Fix Firebase/Ads + Flutter linking crash
+  pod 'nanopb', '~> 2.30908.0'
 end
 
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+
+    # ✅ Ensure iOS 13+ minimum + recommended warnings fixed
+    target.build_configurations.each do |config|
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
+    end
   end
 end
