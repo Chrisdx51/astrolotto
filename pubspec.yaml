@@ -2,7 +2,8 @@ name: astrolotto
 description: "Astro Lotto Luck App"
 publish_to: "none"
 
-version: 1.1.9+33
+# 🧭 Versioning — app store build code
+version: 1.1.9+34
 
 environment:
   sdk: ">=3.0.0 <4.0.0"
@@ -20,23 +21,20 @@ dependencies:
   retry: ^3.1.2
 
   # 🎯 Ads + Sharing
-  google_mobile_ads: ^5.1.0        # ✅ Works great with webview_flutter 4.10+
-  share_plus: ^7.2.1               # ✅ Compatible with Kotlin 1.9.24
+  google_mobile_ads: ^5.1.0        # ✅ iOS-safe (works with SDK 14+)
+  share_plus: ^7.2.1               # ✅ Compatible with Kotlin 1.9.24 and iOS 17+
 
   # 🎧 Audio + Preferences
-  #audioplayers: ^5.1.0
   shared_preferences: ^2.2.3
   flutter_tts: ^4.2.3
 
   # 🌐 WebView (must match AdMob)
-  webview_flutter: ^4.10.0         # ✅ Required by google_mobile_ads 5.1.0
+  webview_flutter: ^4.10.0
 
   # 🔐 Backend + Auth
   supabase_flutter: ^2.5.0
   geolocator: ^13.0.2
   flutter_local_notifications: ^17.2.2
-
-
 
   # 🪶 Utilities
   cupertino_icons: ^1.0.8
@@ -49,7 +47,6 @@ dependencies:
   in_app_purchase: ^3.2.3
   firebase_core: ^3.6.0
   firebase_messaging: ^15.1.0
-
 
   # 🌊 Branding tools
   flutter_native_splash: ^2.4.6
@@ -65,13 +62,8 @@ flutter:
 
   assets:
     - .env
-    - assets/images/astro_lotto_luck_logo.png
-    - assets/images/logolot.png
-    - assets/sounds/meditation_loop.mp3
-    - assets/sounds/tone_432.mp3
-    - assets/sounds/tone_528.mp3
-    - assets/sounds/tone_639.mp3
-    - assets/sounds/tone_741.mp3
+    - assets/images/
+    - assets/sounds/
 
 flutter_native_splash:
   color: "#000000"
