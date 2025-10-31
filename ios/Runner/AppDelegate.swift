@@ -13,12 +13,11 @@ import GoogleMobileAds
   didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
 
-    // ✅ Firebase (safe configure from plist in bundle)
+    // ✅ Initialize Firebase safely
     if FirebaseApp.app() == nil {
       if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
       let options = FirebaseOptions(contentsOfFile: path) {
         print("✅ Firebase plist FOUND at: \(path)")
-        print("✅ Firebase will init for BUNDLE_ID: \(options.bundleID)")
         FirebaseApp.configure(options: options)
       } else {
         print("❌ GoogleService-Info.plist NOT FOUND in bundle.")
@@ -26,28 +25,33 @@ import GoogleMobileAds
       }
     }
 
-    // ✅ Create and run a Flutter engine with the iOS entrypoint
+    // ✅ Create a dedicated Flutter engine and run the iOS entrypoint
     flutterEngine = FlutterEngine(name: "AstroLottoEngine")
-    flutterEngine?.run(withEntrypoint: "main_ios") // 👈 IMPORTANT
+    flutterEngine?.run(withEntrypoint: "main_ios") // 👈 Uses your iOS-specific main()
+
+    // ✅ Register all Flutter plugins (very important)
     if let engine = flutterEngine {
       GeneratedPluginRegistrant.register(with: engine)
     }
 
-    // ✅ Manually show Flutter UI (avoids scene black screen issues)
+    // ✅ Attach Flutter view controller to the window
     if let engine = flutterEngine {
       let flutterVC = FlutterViewController(engine: engine, nibName: nil, bundle: nil)
-      self.window = UIWindow(frame: UIScreen.main.bounds)
-      self.window?.rootViewController = flutterVC
-      self.window?.makeKeyAndVisible()
-      print("✅ FlutterViewController loaded successfully.")
+      window = UIWindow(frame: UIScreen.main.bounds)
+      window?.rootViewController = flutterVC
+      window?.makeKeyAndVisible()
+      print("✅ FlutterViewController displayed successfully.")
+    } else {
+      print("❌ FlutterEngine failed to initialize — check main_ios() entrypoint.")
     }
 
-    // ✅ Start AdMob after a tiny delay
+    // ✅ Initialize AdMob after Flutter is ready (avoids freezes)
     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
       GADMobileAds.sharedInstance().start(completionHandler: nil)
-      print("✅ AdMob initialized safely after Flutter startup.")
+      print("✅ Google Mobile Ads initialized.")
     }
 
+    // ✅ Return super to complete setup
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
