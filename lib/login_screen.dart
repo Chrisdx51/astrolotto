@@ -53,7 +53,8 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     _taglineAnim = AnimationController(vsync: this, duration: const Duration(seconds: 2))..forward();
     _taglineFade = Tween<double>(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _taglineAnim, curve: Curves.easeIn));
     _generateStars();
-    _initializeConsentFlow();
+    Future.delayed(const Duration(milliseconds: 600), _initializeConsentFlow);
+
   }
 
   void _generateStars() {
@@ -230,6 +231,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         await _subscribeToCountryTopics();
 
         await Future.delayed(const Duration(milliseconds: 300));
+        if (!mounted) return; // 👈 add this lin
         Navigator.of(context).pushReplacement(_fadeTo(const GeneratorScreen()));
       }
 

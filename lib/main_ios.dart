@@ -52,8 +52,17 @@ Future<void> _firebaseBackgroundHandler(RemoteMessage message) async {
   debugPrint("📩 Background Notification: ${message.notification?.title}");
 }
 
-Future<void> main() async {
+@pragma('vm:entry-point')
+Future<void> main_ios() async {
+
   WidgetsFlutterBinding.ensureInitialized();
+  debugPrint("🟢 iOS entrypoint started — Flutter running!");
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint("❌ Flutter framework error: ${details.exceptionAsString()}");
+  };
+
 
   // ✅ Initialize Firebase first
   await Firebase.initializeApp();

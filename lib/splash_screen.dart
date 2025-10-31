@@ -17,6 +17,8 @@ class _SplashScreenState extends State<SplashScreen> {
   void initState() {
     super.initState();
     _startFlow();
+    print("🟣 SplashScreen started");
+
   }
 
   Future<void> _startFlow() async {

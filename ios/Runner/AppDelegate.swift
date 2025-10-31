@@ -37,15 +37,20 @@ import GoogleMobileAds
 
     // ⚙️ Step 1: Firebase Init
     updateLabel("⚙️ Initializing Firebase...")
+
     if FirebaseApp.app() == nil {
       if let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
       let options = FirebaseOptions(contentsOfFile: path) {
         FirebaseApp.configure(options: options)
-        updateLabel("✅ Firebase OK")
+        updateLabel("✅ Firebase initialized successfully ✅")
       } else {
-        updateLabel("❌ Firebase plist missing!")
+        updateLabel("⚠️ GoogleService-Info.plist not found — skipping Firebase init")
+        print("⚠️ Firebase plist missing — continuing without crash.")
       }
+    } else {
+      updateLabel("✅ Firebase already configured")
     }
+
 
     // ✨ Step 2: Flutter Engine
     updateLabel("✨ Starting Flutter engine...")

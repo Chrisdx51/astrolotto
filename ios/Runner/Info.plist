@@ -91,5 +91,9 @@
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Photo access allows you to save or share your generated lucky results and charms.</string>
 
+	<!-- ✅ Required for AdMob & UMP (consent form on iOS) -->
+	<key>GADIsAdManagerApp</key>
+	<false/>
+
 </dict>
 </plist>
