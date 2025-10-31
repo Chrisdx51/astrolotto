@@ -33,6 +33,15 @@
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 
+	<!-- ✅ Google AdMob App ID (required for iOS or it will crash) -->
+    <key>GADApplicationIdentifier</key>
+    <string>ca-app-pub-5354629198133392~5128412929</string>
+
+    <!-- ✅ Optional but recommended -->
+    <key>NSUserTrackingUsageDescription</key>
+    <string>This identifier will be used to deliver personalized ads to support the app’s development.</string>
+
+
 	<!-- ✅ Version synced to Flutter pubspec -->
 	<key>CFBundleShortVersionString</key>
 	<string>$(FLUTTER_BUILD_NAME)</string>
