@@ -1,4 +1,4 @@
-# 🚀 Astro Lotto Luck — Clean + Safe iOS Podfile (for Codemagic)
+# 🚀 Astro Lotto Luck — Final Stable Podfile (Codemagic Safe)
 platform :ios, '13.0'
 
 use_frameworks! :linkage => :static
@@ -12,7 +12,6 @@ project 'Runner', {
   'Release' => :release,
 }
 
-# 🔍 Locate Flutter root
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
@@ -26,7 +25,6 @@ def flutter_root
   raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}"
 end
 
-# 🪄 Load Flutter’s helper
 require File.expand_path(File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb'))
 
 flutter_ios_podfile_setup
@@ -34,25 +32,23 @@ flutter_ios_podfile_setup
 target 'Runner' do
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # ✅ Only include SDKs not auto-handled by Flutter plugins
+  # ✅ Only include manually managed SDKs
   pod 'Google-Mobile-Ads-SDK'
 
-  # ✅ Optional: always use the latest nanopb compatible with Firebase
-  pod 'nanopb', '~> 2.30908.0'
+  # ✅ Let firebase_messaging manage nanopb version itself
+  # (Do not pin version manually)
 end
 
 post_install do |installer|
-  # 🧹 Fix build warnings & architecture issues
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
-
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
-      # Avoid arm64 simulator issue on Codemagic M1/M2
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
   end
 
-  # ✅ Force CocoaPods to refresh specs each build (fixes cache issues)
+  # ✅ Clean up old podspecs & refresh
   system('pod repo update')
+  system('pod cache clean --all')
 end
