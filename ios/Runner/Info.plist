@@ -37,11 +37,11 @@
 
 	<!-- ✅ Version synced to Flutter pubspec -->
 	<key>CFBundleShortVersionString</key>
-	<string>1.1.9</string>
+	<string>$(FLUTTER_BUILD_NAME)</string>
 
 	<!-- ✅ Build number synced to Flutter pubspec -->
 	<key>CFBundleVersion</key>
-	<string>29</string>
+	<string>$(FLUTTER_BUILD_NUMBER)</string>
 
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
@@ -49,13 +49,6 @@
 	<!-- ✅ Launch screen -->
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
-
-	<!-- 🚫 FIXED Scene configuration (removed UISceneConfigurations) -->
-	<key>UIApplicationSceneManifest</key>
-	<dict>
-		<key>UIApplicationSupportsMultipleScenes</key>
-		<false/>
-	</dict>
 
 	<!-- 📱 Supported orientations -->
 	<key>UISupportedInterfaceOrientations</key>
