@@ -12,6 +12,7 @@ project 'Runner', {
   'Release' => :release,
 }
 
+# 🔍 Locate Flutter root
 def flutter_root
   generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
   unless File.exist?(generated_xcode_build_settings_path)
@@ -25,6 +26,7 @@ def flutter_root
   raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}"
 end
 
+# 🪄 Load Flutter’s helper
 require File.expand_path(File.join(flutter_root, 'packages', 'flutter_tools', 'bin', 'podhelper.rb'))
 
 flutter_ios_podfile_setup
@@ -32,23 +34,25 @@ flutter_ios_podfile_setup
 target 'Runner' do
   flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
 
-  # ✅ Core SDKs used by your app
-  pod 'Firebase/Core'
-  pod 'Firebase/Messaging'
+  # ✅ Only include SDKs not auto-handled by Flutter plugins
   pod 'Google-Mobile-Ads-SDK'
 
-  # ✅ Fix Firebase/Ads + Flutter linking crash
+  # ✅ Optional: always use the latest nanopb compatible with Firebase
   pod 'nanopb', '~> 2.30908.0'
 end
 
 post_install do |installer|
+  # 🧹 Fix build warnings & architecture issues
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
 
-    # ✅ Ensure iOS 13+ minimum + recommended warnings fixed
     target.build_configurations.each do |config|
       config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+      # Avoid arm64 simulator issue on Codemagic M1/M2
       config.build_settings['EXCLUDED_ARCHS[sdk=iphonesimulator*]'] = 'arm64'
     end
   end
+
+  # ✅ Force CocoaPods to refresh specs each build (fixes cache issues)
+  system('pod repo update')
 end
